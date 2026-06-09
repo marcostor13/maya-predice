@@ -66,6 +66,15 @@ Para cada partido:
   cruces eliminatorios) para mantener la plataforma siempre al día.
 - Auditoría consultable: historial de verificaciones y log de "qué cambió".
 
+### F9 — Plantillas multi-fuente con veracidad (implementada)
+- **Plantilla completa** por selección: jugadores, suplentes y entrenador, con
+  posición, dorsal, club y **estado** (disponible/lesionado/sancionado/duda/baja).
+- **Cruce de 3 fuentes** (API-Football, TheSportsDB, Wikidata) con **consenso por
+  voto mayoritario**: cada dato lleva un nivel de **confianza** según cuántas
+  fuentes coinciden, y los **conflictos** quedan registrados (qué dijo cada una).
+- Se actualiza en la verificación diaria. Endpoint de plantilla y de discrepancias.
+- Datos sensibles a la veracidad: a mayor acuerdo entre fuentes, mayor confianza.
+
 ## 4. Datos
 
 ### Entidades

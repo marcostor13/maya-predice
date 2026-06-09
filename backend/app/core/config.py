@@ -24,6 +24,20 @@ class Settings(BaseSettings):
     sync_minute_utc: int = 0
     enable_scheduler: bool = True
 
+    # --- Fuentes de plantillas (jugadores, suplentes, entrenadores) ---
+    # Lista de proveedores activos (consenso multi-fuente). Opciones:
+    # apifootball, thesportsdb, wikidata, fixture, remote.
+    player_sources: str = "fixture"
+    apifootball_key: str = ""
+    apifootball_host: str = "https://v3.football.api-sports.io"
+    thesportsdb_key: str = "3"
+    squads_fixture_path: str = "app/data/samples/squads_sample.json"
+    squads_remote_url: str = ""
+
+    @property
+    def player_sources_list(self) -> list[str]:
+        return [s.strip() for s in self.player_sources.split(",") if s.strip()]
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

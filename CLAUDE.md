@@ -15,6 +15,8 @@ partidos del Mundial de Fútbol 2026** usando un modelo estadístico
 
 - **Producto y alcance funcional:** ver `PLATFORM.md`
 - **Arquitectura técnica detallada:** ver `ARCHITECTURE.md`
+- **Bitácora de lo implementado (cronológica):** ver `DEVLOG.md` — añade una
+  entrada cada vez que completes un bloque de trabajo.
 - **Este archivo (CLAUDE.md):** memoria operativa, convenciones, estado actual.
 
 ## 2. Stack (resumen — detalle en ARCHITECTURE.md)
@@ -89,8 +91,11 @@ uvicorn app.main:app --reload          # http://localhost:8000/docs
 # Migraciones
 cd backend && alembic revision --autogenerate -m "msg" && alembic upgrade head
 
-# Ingesta + verificación de datos oficiales (manual)
+# Ingesta + verificación de datos oficiales (partidos)
 cd backend && python -m app.data.sync
+
+# Sincronización de plantillas multi-fuente (jugadores/suplentes/DT)
+cd backend && python -m app.data.sync_squads
 
 # Tests backend
 cd backend && pytest
@@ -109,6 +114,11 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - [x] **Datos oficiales 2026**: proveedor openfootball + sync idempotente +
       verificación diaria con detección de cambios (104 partidos, 48 equipos).
       Verificado end-to-end contra PostgreSQL.
+- [x] **Plantillas multi-fuente**: jugadores/suplentes/DT + estado, consenso de
+      3 fuentes (apifootball/thesportsdb/wikidata) con confianza y discrepancias.
+      Verificado end-to-end contra PostgreSQL (consenso + conflictos).
+- [ ] Producción: añadir hosts de plantillas a la allowlist de Coolify + keys,
+      activar `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`.
 - [ ] Ingesta de resultados históricos para entrenar el modelo (2º proveedor).
 - [ ] Calibración y backtesting del modelo.
 - [ ] Frontend: dashboard de predicciones + detalle de partido.
@@ -130,3 +140,12 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - El proveedor normaliza el grupo `"Group A"` → `"A"` (las columnas `group` son
   `String(2)`). Las eliminatorias guardan placeholders (`W101`, `1A`) hasta que
   se resuelve el cruce; los FK de equipo son nullable.
+- **Plantillas**: consenso multi-fuente por nombre normalizado; cada dato lleva
+  `confidence`/`sources_count`/`source_data` y los conflictos van a
+  `squad_discrepancies`. Fuentes activas vía `PLAYER_SOURCES`.
+- **Red del entorno = allowlist.** En el sandbox solo `raw.githubusercontent.com`
+  responde; las APIs externas dan 403. En Coolify hay que allowlistar hosts +
+  poner keys. Por eso `fixture` es la fuente por defecto en dev.
+- **PostgreSQL: palabras reservadas.** `position` es reservada → se mapea a
+  `player_position` y su enum a `position_enum` (SQLAlchemy no las entrecomilla).
+  Cuidado al nombrar columnas/enums nuevos.

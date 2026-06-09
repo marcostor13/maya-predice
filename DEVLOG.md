@@ -1,0 +1,142 @@
+# DEVLOG.md — Bitácora de desarrollo de maya-predice
+
+> Registro **cronológico y permanente** de lo que vamos implementando, por qué, y
+> cómo se verificó. Sirve para guiarnos y tener siempre claro qué se ha construido.
+> **Regla:** cada vez que se complete un bloque de trabajo, añade una entrada al
+> final con: objetivo, decisiones, qué se implementó, verificación y pendientes.
+> Para el estado operativo vivo ver `CLAUDE.md`; para el producto `PLATFORM.md`;
+> para la arquitectura `ARCHITECTURE.md`.
+
+---
+
+## Entrada 001 — Scaffolding inicial del proyecto
+**Fecha:** 2026-06-09 · **Commit:** `04b25c3`
+
+**Objetivo.** Crear toda la base para desarrollar una web que predice los
+partidos del Mundial 2026 (frontend Angular, backend Python, base de datos,
+despliegue Netlify/Coolify) y la documentación guía.
+
+**Decisiones clave.**
+- **Backend → FastAPI** (mejor para APIs de modelos estadísticos: async,
+  Pydantic, integración con numpy/scipy/pandas).
+- **Base de datos → PostgreSQL** en vez de MongoDB: los datos de fútbol son
+  relacionales y se explotan con agregaciones SQL (ADR-001).
+- **Modelo → Dixon-Coles** (Poisson bivariado con corrección para marcadores
+  bajos), estándar en predicción de fútbol (ADR-003).
+
+**Qué se implementó.**
+- Documentación guía: `CLAUDE.md` (memoria), `ARCHITECTURE.md` (arquitectura +
+  ADRs), `PLATFORM.md` (producto/alcance).
+- Backend FastAPI en capas (api → services → models, schemas Pydantic), motor
+  de predicción Dixon-Coles + simulador Monte Carlo, modelos ORM base.
+- Frontend Angular 18 standalone (servicios, modelos, dashboard, detalle).
+- Infra: `docker-compose`, `Dockerfile`, `netlify.toml`, Alembic.
+- `.claude/`: 4 agents (backend, frontend, data-scientist, devops) y skills.
+
+**Verificación.** 10 tests del motor de predicción en verde (normalización de la
+matriz de marcadores, suma de probabilidades = 1, monotonicidad fuerza→victoria).
+
+**Pendientes que dejó.** Datos reales, calibración, frontend completo, CI/CD.
+
+---
+
+## Entrada 002 — Datos oficiales del torneo + verificación diaria
+**Fecha:** 2026-06-09 · **Commit:** `34ecf60`
+
+**Objetivo.** Guardar toda la información oficial del Mundial conectada a datos
+FIFA y verificarla a diario tras los partidos, registrando los cambios.
+
+**Investigación / decisiones.**
+- La **FIFA no tiene API pública**; `api.fifa.com` **devuelve 403 a servidores**
+  (verificado). → Se usa **openfootball/worldcup.json**: JSON de dominio público
+  derivado del calendario oficial FIFA, sin API key, accesible desde servidores
+  (ADR-004). Tras una **abstracción `DataProvider`** para poder sustituir/añadir
+  fuentes (p.ej. API-Football) sin tocar el resto.
+- Upsert **idempotente** por `Match.external_ref` (clave estable: grupos por
+  equipos; eliminatorias por "ranura" fase+fecha+hora+sede).
+
+**Qué se implementó.**
+- Proveedor openfootball + mapeo canónico de las 48 selecciones (código FIFA +
+  confederación).
+- `sync_service` con `compute_changes` (diff puro) → registra cada cambio en
+  `data_changes` y cada corrida en `sync_runs` (auditoría).
+- Verificación diaria con **APScheduler** (06:00 UTC, configurable) + CLI
+  `python -m app.data.sync` para cron en Coolify.
+- Modelos `SyncRun`/`DataChange`; `Match` con `external_ref`, `matchday` y
+  placeholders de eliminatorias (FK de equipo nullable).
+- Endpoints `/api/v1/sync` (runs, changes, run manual). Migración inicial Alembic.
+
+**Verificación (end-to-end contra PostgreSQL real).**
+- Parseo de los **104 partidos** reales (72 grupo + 32 eliminatorias), 48
+  equipos, horarios convertidos a UTC, `external_ref` únicos.
+- Corrida 1: 104 altas. Corrida 2 (re-sync): **0 cambios** (idempotencia).
+  Corrida 3 (resultado simulado): detecta **3 cambios** (goles local/visitante +
+  estado scheduled→finished).
+- **Bug corregido por la verificación:** el grupo llegaba como `"Group A"` y la
+  columna era `String(2)` → se normaliza a `"A"`.
+- 21 tests en verde.
+
+**Pendientes que dejó.** Histórico para entrenar el modelo; calibración; frontend.
+
+---
+
+## Entrada 003 — Plantillas (jugadores, suplentes, entrenadores) multi-fuente con consenso
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Guardar la información completa de jugadores, suplentes y
+entrenadores con su **estado** (disponible, lesionado, sancionado, duda, baja),
+consultando **3 fuentes** y cruzándolas para dar veracidad.
+
+**Investigación / decisiones.**
+- Las APIs de jugadores (API-Football, TheSportsDB, Wikidata, Wikipedia) **no son
+  accesibles desde este entorno**: la red del entorno tiene una **allowlist** y
+  esos hosts devuelven `403 "Host not in allowlist"` (solo `raw.githubusercontent`
+  está permitido aquí). En **producción (Coolify)** la allowlist y las API keys
+  las configura el usuario.
+- Por eso el diseño separa **arquitectura** (verificable ahora) de **acceso a
+  red** (depende de producción): se construyó el **motor de consenso** y la
+  ingesta multi-fuente, más **3 adaptadores reales** listos para producción y un
+  **proveedor de fixture** verificable offline (ADR-005).
+- **Veracidad por consenso:** cada campo de cada jugador se decide por **voto
+  mayoritario** entre fuentes (desempate por prioridad de fuente); se calcula la
+  **confianza** (grado de acuerdo) y se registran las **discrepancias** (qué dijo
+  cada fuente). Identidad de jugador entre fuentes = **nombre normalizado** (sin
+  acentos/puntuación).
+
+**Qué se implementó.**
+- Abstracción `PlayerDataProvider` + observaciones normalizadas
+  (`PlayerObservation`, `CoachObservation`, `SquadObservation`) y helpers de
+  normalización (posición, estado, rol, nombre).
+- **3 adaptadores de fuentes reales:** `apifootball` (squad + lesiones + coach),
+  `thesportsdb` (gratuita), `wikidata` (SPARQL, sin key). Configurables por
+  `PLAYER_SOURCES` + keys en `.env`.
+- Proveedor `fixture`/`remote` (JSON propio) para desarrollo/offline + archivo de
+  muestra `app/data/samples/squads_sample.json`.
+- **Motor de consenso** puro `services/squad/consensus.py` (`merge_field`,
+  `build_player_consensus`, `build_coach_consensus`).
+- `squad_service` que reúne fuentes, agrupa por jugador, aplica consenso, hace
+  upsert de `Player`/`Coach` con `confidence`, `sources_count` y `source_data`
+  (trazabilidad), y guarda conflictos en `squad_discrepancies`.
+- Modelos `Coach`, `Player` (con estado/rol/posición), `SquadDiscrepancy`.
+- Endpoints `/api/v1/squads/{code}`, `/squads/discrepancies`, `/squads/sync`.
+- Job diario extendido para sincronizar también plantillas; CLI
+  `python -m app.data.sync_squads`. Migración Alembic de plantillas.
+
+**Verificación (end-to-end contra PostgreSQL real).**
+- Consenso de **3 fuentes** con conflicto deliberado: Messi (3/3) → confianza
+  **1.0**, 0 discrepancias; Enzo Fernández (conflicto) → dorsal 24 y estado
+  *available* por mayoría (2/3), confianza **0.867**, **2 discrepancias**
+  registradas con la traza de cada fuente.
+- Proveedor fixture real: carga 7 jugadores + 2 entrenadores desde el archivo.
+- 31 tests en verde (consenso, parser fixture, + los anteriores).
+- **2 bugs corregidos por la verificación:** (1) `position` es palabra reservada
+  en PostgreSQL → la columna se mapea a `player_position` y el tipo enum a
+  `position_enum`; SQLAlchemy no las entrecomillaba.
+
+**Pendientes que dejó.**
+- En producción: poner los hosts de las 3 fuentes en la allowlist de Coolify,
+  cargar `APIFOOTBALL_KEY` y activar `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`.
+- Afinar el adaptador Wikidata (la fuente más ruidosa) y el mapeo de IDs de
+  equipo en API-Football/TheSportsDB con datos reales.
+- Relacionar el estado de los jugadores con el modelo de predicción (ajustar la
+  fuerza del equipo según bajas/lesiones).

@@ -132,6 +132,9 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | GET    | `/api/v1/sync/runs`               | Historial de verificaciones.         |
 | GET    | `/api/v1/sync/changes`            | Cambios detectados (qué cambió hoy). |
 | POST   | `/api/v1/sync/run`                | Verificación manual inmediata.       |
+| GET    | `/api/v1/squads/{code}`           | Plantilla: jugadores, suplentes, DT. |
+| GET    | `/api/v1/squads/discrepancies`    | Conflictos entre fuentes (veracidad).|
+| POST   | `/api/v1/squads/sync`             | Sincroniza plantillas (consenso).    |
 
 ## 4.b Ingesta y verificación de datos oficiales
 
@@ -171,6 +174,40 @@ a diario** detectando cambios. Diseño:
   `ENABLE_SCHEDULER=false`).
 - **Equipos**: las 48 selecciones provienen del mapeo canónico
   `app/data/team_mapping.py` (nombre → código FIFA + confederación).
+
+## 4.c Plantillas multi-fuente con consenso (jugadores, suplentes, DT)
+
+La información de plantillas se obtiene de **varias fuentes** y se reconcilia por
+**consenso** para dar veracidad.
+
+```
+  Fuente 1 (apifootball) ─┐
+  Fuente 2 (thesportsdb) ─┼─▶ squad_service ─▶ consenso por campo ─▶ players/coaches
+  Fuente 3 (wikidata)    ─┘     (agrupa por        (voto mayoría,        (+ confidence,
+  [fixture/remote dev]          nombre norm.)       prioridad, conflictos) sources_count,
+                                                                          source_data)
+                                            └────────▶ squad_discrepancies (conflictos)
+```
+
+- **Proveedores (`app/data/players/`)**: interfaz `PlayerDataProvider.fetch_all()`
+  → `SquadObservation` normalizadas. Adaptadores: `apifootball`, `thesportsdb`,
+  `wikidata` (producción, requieren key/allowlist) y `fixture`/`remote` (dev).
+  Activos según `PLAYER_SOURCES`.
+- **Consenso (`services/squad/consensus.py`, puro/testeable)**: por cada campo,
+  `merge_field` decide por **voto mayoritario** (desempate por prioridad de
+  fuente), calcula `agreement` (acuerdo) y marca conflictos. La **confianza** del
+  jugador = media de acuerdos por campo; `sources_count` = nº de fuentes.
+- **Identidad entre fuentes**: nombre normalizado (sin acentos/puntuación).
+- **Trazabilidad/veracidad**: `Player.source_data` guarda qué dijo cada fuente;
+  los conflictos se persisten en `squad_discrepancies`.
+- **Estado del jugador**: enum (available/injured/suspended/doubtful/out/unknown).
+- La verificación diaria (4.b) ejecuta también esta sincronización.
+
+> **Nota de red (importante).** El entorno de ejecución usa una **allowlist** de
+> hosts salientes. En el sandbox de desarrollo solo `raw.githubusercontent.com`
+> está permitido; las APIs de jugadores dan 403. En **producción (Coolify)** hay
+> que **añadir los hosts a la allowlist** y cargar las API keys. Por eso el
+> sistema degrada con gracia: una fuente caída no aborta el resto.
 
 ## 5. Despliegue
 
@@ -230,3 +267,19 @@ pago (p.ej. API-Football) para datos en vivo más ricos sin tocar el resto.
 contra PostgreSQL (alta de 104 + idempotencia en re-sync + detección de resultado).
 **Consecuencia:** dependencia de un repo comunitario; mitigada por la abstracción
 de proveedor y por registrar cada cambio en `data_changes` para auditoría.
+
+### ADR-005 — Plantillas multi-fuente con consenso (3 fuentes)
+**Contexto:** se requiere información de jugadores/suplentes/entrenadores con su
+estado, cruzando ~3 fuentes para veracidad. Ninguna fuente única es completa ni
+100% fiable, y las APIs (API-Football, TheSportsDB, Wikidata) requieren key y/o
+estar en la allowlist del entorno.
+**Decisión:** ingesta **multi-fuente** tras `PlayerDataProvider`, reconciliada por
+un **motor de consenso** (voto mayoritario por campo + confianza + registro de
+discrepancias). Tres adaptadores reales (`apifootball`, `thesportsdb`,
+`wikidata`) + `fixture/remote` para desarrollo. La confianza y la traza por
+fuente quedan persistidas para auditoría.
+**Verificado:** consenso de 3 fuentes con conflicto resuelto por mayoría y
+discrepancias registradas, contra PostgreSQL real. (La conectividad real a las 3
+APIs depende de la allowlist + keys de producción.)
+**Consecuencia:** Wikidata es la fuente más ruidosa → menor prioridad en
+desempates. El estado de jugadores podrá alimentar el modelo (ajuste por bajas).

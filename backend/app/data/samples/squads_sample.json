@@ -1,0 +1,24 @@
+{
+  "source": "fixture",
+  "squads": [
+    {
+      "team_code": "ARG",
+      "coach": { "name": "Lionel Scaloni", "nationality": "Argentina", "status": "available" },
+      "players": [
+        { "full_name": "Emiliano Martínez", "position": "GK", "shirt_number": 23, "club": "Aston Villa", "role": "starter", "status": "available" },
+        { "full_name": "Lionel Messi", "position": "FWD", "shirt_number": 10, "club": "Inter Miami", "role": "starter", "status": "available" },
+        { "full_name": "Julián Álvarez", "position": "FWD", "shirt_number": 9, "club": "Atlético Madrid", "role": "starter", "status": "available" },
+        { "full_name": "Enzo Fernández", "position": "MID", "shirt_number": 24, "club": "Chelsea", "role": "substitute", "status": "doubtful" }
+      ]
+    },
+    {
+      "team_code": "BRA",
+      "coach": { "name": "Dorival Júnior", "nationality": "Brazil", "status": "available" },
+      "players": [
+        { "full_name": "Alisson", "position": "GK", "shirt_number": 1, "club": "Liverpool", "role": "starter", "status": "available" },
+        { "full_name": "Vinícius Júnior", "position": "FWD", "shirt_number": 7, "club": "Real Madrid", "role": "starter", "status": "available" },
+        { "full_name": "Rodrygo", "position": "FWD", "shirt_number": 11, "club": "Real Madrid", "role": "substitute", "status": "available" }
+      ]
+    }
+  ]
+}

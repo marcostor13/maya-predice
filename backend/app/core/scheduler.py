@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.squad_service import build_player_providers, sync_squads
 from app.services.sync_service import default_provider, sync_official_data
 
 logger = logging.getLogger("maya.scheduler")
@@ -24,21 +25,34 @@ _scheduler: AsyncIOScheduler | None = None
 
 
 async def run_daily_sync() -> None:
-    """Job: sincroniza con la fuente oficial y registra los cambios."""
-    logger.info("Iniciando verificación diaria de datos oficiales…")
+    """Job diario: verifica datos oficiales (partidos) y plantillas multi-fuente."""
+    logger.info("Iniciando verificación diaria…")
     async with AsyncSessionLocal() as db:
         try:
             run = await sync_official_data(db, default_provider(), trigger="scheduled")
             await db.commit()
             logger.info(
-                "Verificación completada: %s altas, %s actualizados, %s cambios.",
+                "Partidos: %s altas, %s actualizados, %s cambios.",
                 run.created,
                 run.updated,
                 run.changes_count,
             )
         except Exception:
             await db.rollback()
-            logger.exception("La verificación diaria falló.")
+            logger.exception("La verificación de partidos falló.")
+
+    providers = build_player_providers()
+    if not providers:
+        logger.info("Sin fuentes de plantillas configuradas; se omite la sincronización de plantillas.")
+        return
+    async with AsyncSessionLocal() as db:
+        try:
+            run = await sync_squads(db, providers, trigger="scheduled")
+            await db.commit()
+            logger.info("Plantillas: %s", run.message)
+        except Exception:
+            await db.rollback()
+            logger.exception("La verificación de plantillas falló.")
 
 
 def start_scheduler() -> None:
