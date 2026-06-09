@@ -6,9 +6,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# No hace falta build-essential: numpy/scipy/pandas/asyncpg se instalan como
-# wheels precompilados (manylinux). Evitarlo reduce mucho el tamaño de la imagen
-# y el tiempo de build.
+# curl: necesario para el healthcheck de Coolify (GET /health dentro del contenedor).
+# No hace falta build-essential: numpy/scipy/pandas/asyncpg se instalan como wheels
+# precompilados (manylinux), así la imagen se mantiene ligera.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
