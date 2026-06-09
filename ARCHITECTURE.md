@@ -129,6 +129,22 @@ plantilla (posición × rol × estado) y lo aplica como delta en log-espacio. Co
 plantilla completa el delta es 0 (el ajuste solo penaliza por bajas). El detalle
 aplicado se guarda en `Prediction.adjustments`.
 
+**Prior Elo.** `prediction/elo.py` calcula ratings Elo desde el mismo histórico
+(suma cero, multiplicador por diferencia de goles, localía en no-neutrales). Se
+convierten en un prior de fuerza neta (z-score) que **regulariza** el ajuste MLE
+(`fit(..., priors, prior_weight)`), mejorando a equipos con pocos partidos.
+
+**Simulación del torneo.** `prediction/simulator.py` + `simulation_service.py`
+corren Monte Carlo del formato 2026 (12 grupos, 2 primeros + 8 mejores terceros,
+eliminatoria sembrada por fuerza), usando el modelo entrenado, los ajustes por
+disponibilidad y sede neutral. Persiste por selección las probabilidades de
+superar grupo y de alcanzar cada ronda (incl. campeón) en `simulation_results`.
+
+**Actualización en vivo (`services/recompute.py`).** A medida que terminan los
+partidos: reingiere resultados y, **solo si hubo cambios**, reentrena el modelo,
+regenera las predicciones de lo venidero y re-ejecuta la simulación. Lo dispara
+el scheduler cada `LIVE_POLL_MINUTES` (job "en vivo") además del refresco diario.
+
 > El modelo es **versionado** (`model_version`). Cada corrida persiste sus
 > predicciones para auditoría y backtesting.
 
@@ -153,6 +169,9 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | GET    | `/api/v1/squads/discrepancies`    | Conflictos entre fuentes (veracidad).|
 | POST   | `/api/v1/squads/sync`             | Sincroniza plantillas (consenso).    |
 | POST   | `/api/v1/predictions/train`       | Reentrena el modelo y guarda fuerzas.|
+| GET    | `/api/v1/simulate/tournament`     | Última simulación (probabilidades).  |
+| POST   | `/api/v1/simulate/run`            | Ejecuta una simulación Monte Carlo.  |
+| POST   | `/api/v1/sync/recompute`          | Recálculo en vivo (si hay resultados).|
 
 ## 4.b Ingesta y verificación de datos oficiales
 
@@ -316,3 +335,20 @@ GER — coherente); predicción BRA-MAR pasa de 47%→34% de victoria local al l
 3 titulares ofensivos (la disponibilidad de ataque cae a 0.44). Contra PostgreSQL.
 **Consecuencia:** `team_strengths` guarda ataque/defensa por versión; el modelo se
 cachea en proceso y se reentrena en el job diario. Más fuentes en `DATA_SOURCES.md`.
+
+### ADR-007 — Prior Elo, simulación del torneo y actualización en vivo
+**Contexto:** faltaba (a) un prior de fuerza para regularizar, (b) traducir el
+modelo en probabilidades de avance/campeón, y (c) recalcular todo a medida que se
+juegan los partidos.
+**Decisión:** (a) **Elo calculado desde el propio histórico** como prior MAP
+(sin nueva fuente externa, reproducible). (b) **Simulación Monte Carlo** del
+formato 2026 con el modelo entrenado + disponibilidad + sede neutral, persistida.
+(c) **Pipeline de recálculo** (`recompute`) disparado por el scheduler cada
+`LIVE_POLL_MINUTES`: reingiere resultados y, si cambian, reentrena, regenera
+predicciones y re-simula. Eficiente (no recalcula si no hay cambios).
+**Verificado contra PostgreSQL:** top campeón BEL/ARG/FRA/BRA/POR/ESP (coherente);
+pipeline regenera 72 predicciones + simula 48; sin cambios no recalcula; al
+terminar un BRA 5-0 su probabilidad de campeón sube (8.8%→10.1%).
+**Consecuencia:** durante el torneo conviene bajar `LIVE_POLL_MINUTES` (p.ej. 30).
+El bracket de eliminatorias es una siembra por fuerza (simplificación); refinar el
+cruce oficial 2026 es trabajo futuro.

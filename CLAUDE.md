@@ -100,6 +100,9 @@ cd backend && python -m app.data.sync_squads
 # Entrenar el modelo con histórico real + persistir fuerzas por equipo
 cd backend && python -m app.data.train
 
+# Recálculo en vivo (reingesta de resultados + reentreno + predicciones + simulación)
+cd backend && python -m app.data.recompute
+
 # Tests backend
 cd backend && pytest
 
@@ -123,10 +126,14 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - [x] **Modelo entrenado con histórico real** (martj42, ~49k partidos) + sede
       neutral + fit vectorizado; **ajuste por disponibilidad** de plantilla.
       Verificado: top ataque coherente y la predicción cambia con bajas.
+- [x] **Prior Elo + simulación Monte Carlo + actualización en vivo**: Elo desde
+      el histórico como prior; probabilidades de avance/campeón; recálculo al
+      terminar partidos. Verificado end-to-end (favoritos coherentes; reactividad).
 - [ ] Producción: añadir hosts de plantillas a la allowlist de Coolify + keys,
-      activar `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`.
-- [ ] Más fuentes para nutrir el modelo (Elo, xG, valor de mercado): `DATA_SOURCES.md`.
-- [ ] Calibración y backtesting del modelo.
+      activar `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`. Durante el torneo
+      bajar `LIVE_POLL_MINUTES` (p.ej. 30).
+- [ ] Más fuentes para nutrir el modelo (xG, valor de mercado, cuotas): `DATA_SOURCES.md`.
+- [ ] Bracket oficial 2026 exacto en el simulador; calibración y backtesting.
 - [ ] Frontend: dashboard de predicciones + detalle de partido.
 - [ ] CI/CD (Netlify + Coolify) configurado en producción.
 

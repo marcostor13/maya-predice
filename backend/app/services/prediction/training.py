@@ -21,6 +21,7 @@ from app.data.history import ResultsHistoryProvider
 from app.models.match import Match, MatchStatus
 from app.models.team import Team, TeamStrength
 from app.services.prediction.dixon_coles import DixonColesModel, MatchResult
+from app.services.prediction.elo import compute_elo, elo_to_priors
 
 logger = logging.getLogger("maya.training")
 
@@ -59,15 +60,21 @@ async def train_model(db: AsyncSession, *, force: bool = False) -> DixonColesMod
     if not dataset:
         raise ValueError("No hay datos de entrenamiento (histórico vacío).")
 
+    # Elo como prior de fuerza (regulariza a equipos con pocos partidos).
+    elo = compute_elo(dataset)
+    priors = elo_to_priors(elo) if settings.elo_prior_weight > 0 else None
+
     model = DixonColesModel(xi=settings.model_decay_xi)
-    model.fit(dataset)
+    model.fit(dataset, priors=priors, prior_weight=settings.elo_prior_weight)
+    model.elo = elo  # type: ignore[attr-defined]
     _CACHE[version] = model
     logger.info(
-        "Modelo entrenado: %s equipos, %s partidos (%s histórico + %s torneo).",
+        "Modelo entrenado: %s equipos, %s partidos (%s histórico + %s torneo), prior Elo=%s.",
         len(model.teams),
         len(dataset),
         len(history),
         len(tournament),
+        settings.elo_prior_weight,
     )
     return model
 
@@ -79,6 +86,7 @@ def clear_cache() -> None:
 async def persist_team_strengths(db: AsyncSession, model: DixonColesModel) -> int:
     """Guarda ataque/defensa por equipo en `team_strengths` (para mostrar/auditar)."""
     teams = {t.code: t for t in (await db.execute(select(Team))).scalars().all()}
+    elo = getattr(model, "elo", {}) or {}
     count = 0
     for code, team in teams.items():
         if code in model.attack:
@@ -88,6 +96,7 @@ async def persist_team_strengths(db: AsyncSession, model: DixonColesModel) -> in
                     model_version=settings.model_version,
                     attack=model.attack[code],
                     defense=model.defense[code],
+                    elo=elo.get(code),
                 )
             )
             count += 1

@@ -66,6 +66,20 @@ Para cada partido:
   cruces eliminatorios) para mantener la plataforma siempre al día.
 - Auditoría consultable: historial de verificaciones y log de "qué cambió".
 
+### F12 — Actualización en vivo durante el torneo (implementada)
+- A medida que **terminan los partidos**, la plataforma reingiere los resultados y
+  **recalcula automáticamente** las estadísticas del modelo, las predicciones de
+  los partidos venideros y la simulación del torneo.
+- Eficiente: solo recalcula cuando hay cambios. Frecuencia configurable
+  (`LIVE_POLL_MINUTES`); también disparable manualmente (`POST /sync/recompute`).
+
+### F11 — Simulación del torneo + prior Elo (implementada)
+- **Probabilidades de avance y de título** por selección vía simulación Monte
+  Carlo del formato 2026 (grupos + mejores terceros + eliminatorias), usando el
+  modelo entrenado y los ajustes por disponibilidad.
+- El modelo incorpora un **prior Elo** (calculado del histórico) que regulariza a
+  las selecciones con pocos partidos recientes.
+
 ### F10 — Modelo entrenado con histórico + ajuste por bajas (implementada)
 - El modelo se **entrena con resultados históricos reales** (miles de partidos
   internacionales) y con los resultados del propio torneo; respeta la sede neutral

@@ -33,6 +33,7 @@ class TeamStrength(Base):
     model_version: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     attack: Mapped[float] = mapped_column(Float, nullable=False)
     defense: Mapped[float] = mapped_column(Float, nullable=False)
+    elo: Mapped[float | None] = mapped_column(Float, nullable=True)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     team = relationship("Team", back_populates="strengths")

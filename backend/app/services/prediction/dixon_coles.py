@@ -71,13 +71,26 @@ class DixonColesModel:
         today = max(valid)
         return np.array([np.exp(-self.xi * (today - d).days) if d else 1.0 for d in dates])
 
-    def fit(self, matches: list[MatchResult]) -> DixonColesModel:
+    def fit(
+        self,
+        matches: list[MatchResult],
+        priors: dict[str, float] | None = None,
+        prior_weight: float = 0.0,
+    ) -> DixonColesModel:
+        """Ajusta el modelo. Opcionalmente regulariza la fuerza neta de cada equipo
+        (attack-defense) hacia un `prior` (p.ej. derivado de Elo) con peso
+        `prior_weight` (MAP). Útil para equipos con pocos partidos."""
         if not matches:
             raise ValueError("Se requieren partidos para entrenar el modelo.")
 
         self.teams = sorted({t for m in matches for t in (m.home, m.away)})
         n = len(self.teams)
         idx = {t: i for i, t in enumerate(self.teams)}
+        prior_vec = (
+            np.array([(priors or {}).get(t, 0.0) for t in self.teams])
+            if priors and prior_weight > 0
+            else None
+        )
 
         hi = np.array([idx[m.home] for m in matches])
         ai = np.array([idx[m.away] for m in matches])
@@ -112,6 +125,8 @@ class DixonColesModel:
             ll += np.log(tau)
 
             total = np.sum(weights * ll) - 100.0 * attack.mean() ** 2  # fija la escala
+            if prior_vec is not None:
+                total -= prior_weight * np.sum((attack - defense - prior_vec) ** 2)
             return -total
 
         x0 = np.concatenate([np.zeros(n), np.zeros(n), np.array([0.25]), np.array([-0.1])])

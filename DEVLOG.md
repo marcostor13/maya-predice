@@ -190,3 +190,51 @@ sugerir más datos/fuentes para enriquecer el modelo.
 - Localía real de anfitriones (MEX/USA/CAN) y contexto (altitud Ciudad de México).
 - Calibración/backtesting (Brier, log-loss) y simulación del torneo con el modelo
   entrenado + disponibilidad.
+
+---
+
+## Entrada 005 — Prior Elo + simulación del torneo + actualización en vivo
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** (1) Añadir Elo como prior del modelo, (2) conectar el simulador
+Monte Carlo con el modelo entrenado + disponibilidad, y (3) recalcular en vivo:
+al terminar partidos, actualizar estadísticas y predicciones de lo venidero.
+
+**Decisiones.**
+- **Elo desde el histórico** (no fuente externa): reproducible, suma cero, con
+  multiplicador por diferencia de goles y localía en no-neutrales. Se convierte en
+  prior de fuerza neta (z-score) y se usa como término MAP en el fit
+  (`prior_weight`). Regulariza a equipos con pocos partidos.
+- **Simulación**: formato 2026 (12 grupos, 2 primeros + 8 mejores terceros,
+  eliminatoria sembrada por fuerza), sede neutral y ajustes por disponibilidad.
+  Bracket por rondas anidadas → siempre un campeón y probabilidades monótonas.
+- **Actualización en vivo**: pipeline `recompute` (sync resultados → si cambian:
+  reentrena + regenera predicciones + re-simula). Disparado por un job de
+  intervalo (`LIVE_POLL_MINUTES`) además del refresco diario. Eficiente: no
+  recalcula si no hubo cambios.
+
+**Qué se implementó.**
+- `prediction/elo.py` (compute_elo, elo_to_priors); `dixon_coles.fit` con priors.
+- `prediction/simulator.py` reescrito (modelo+ajustes+neutral, formato 48,
+  rondas anidadas); `simulation_service.py`; modelos `SimulationRun/Result`.
+- `services/recompute.py` (pipeline); `prediction_service.regenerate_upcoming_predictions`
+  y `compute_all_adjustments`.
+- Scheduler con 2 jobs (diario + en vivo); CLI `python -m app.data.recompute`.
+- Endpoints `GET/POST /simulate/*`, `POST /sync/recompute`; columna `team_strengths.elo`.
+- Config: `ELO_PRIOR_WEIGHT`, `SIMULATION_ITERATIONS`, `ENABLE_LIVE_UPDATES`,
+  `LIVE_POLL_MINUTES`. Migración de tablas de simulación + columna elo.
+- `DATA_SOURCES.md` actualizado (Elo integrado).
+
+**Verificación (end-to-end contra PostgreSQL real).**
+- Entrenamiento con prior Elo: top ataque BEL/BRA/ESP/FRA/ARG (coherente).
+- Simulación (3000 iter): top campeón BEL 22%, ARG 12%, FRA 10%, BRA 9%, POR/ESP
+  8% — favoritos creíbles; probabilidades de campeón suman 1.
+- Pipeline en vivo: force → regenera 72 predicciones + simula 48; sin cambios →
+  no recalcula (eficiente); al "terminar" un BRA 5-0 su prob. de campeón sube
+  (8.8%→10.1%).
+- 54 tests en verde.
+
+**Pendientes que dejó.**
+- Bracket oficial 2026 exacto (hoy siembra por fuerza).
+- Localía real de anfitriones; xG / valor de mercado / cuotas (DATA_SOURCES).
+- Calibración/backtesting (Brier, log-loss) y frontend (dashboard + simulación).

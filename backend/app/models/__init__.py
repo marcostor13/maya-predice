@@ -2,6 +2,7 @@
 
 from app.models.match import Match, MatchStage, MatchStatus
 from app.models.prediction import Prediction
+from app.models.simulation import SimulationResult, SimulationRun
 from app.models.squad import (
     Coach,
     Player,
@@ -24,6 +25,8 @@ __all__ = [
     "PlayerStatus",
     "Position",
     "Prediction",
+    "SimulationResult",
+    "SimulationRun",
     "SquadDiscrepancy",
     "SquadRole",
     "SyncRun",

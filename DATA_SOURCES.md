@@ -15,22 +15,16 @@
 | Calendario, grupos, sedes, resultados 2026 | openfootball | 🟢 | Estructura del torneo + resultados (verificación diaria). |
 | Plantillas, suplentes, DT, estado | API-Football + TheSportsDB + Wikidata (consenso) | 🟡 | Disponibilidad de jugadores → ajuste de fuerza. |
 | **Histórico internacional (49k partidos)** | martj42/international_results | 🟢 | **Entrena el modelo** (ataque/defensa, localía, rho). |
+| **Elo internacional (prior)** | calculado del histórico (`prediction/elo.py`) | 🟢 | Prior de fuerza; regulariza equipos con pocos partidos. |
 
 ---
 
 ## Recomendado a continuación (orden de impacto/esfuerzo)
 
-### 1. Ranking FIFA y Elo internacional — prior de fuerza 🟢/🟡
-**Por qué.** Mejora a equipos con pocos partidos recientes y regulariza las
-estimaciones (prior bayesiano). El Elo, en particular, **incorpora la dificultad
-del rival y la importancia del partido**.
-- **World Football Elo** (`eloratings.net`) / datasets en GitHub y Kaggle
-  ("International Football Elo Ratings 1872–2025"). 🟡 (web) / 🟢 (mirrors GitHub).
-- **Ranking FIFA**: publicado por la FIFA; hay datasets en GitHub. 🟢/🟡.
-**Integración.** Mezclar como prior en la verosimilitud (shrinkage de ataque/defensa
-hacia el implícito por Elo) o como feature de un modelo de blending.
+> El **Elo** ya está integrado (calculado del histórico) como prior. El ranking
+> FIFA oficial como segunda señal queda de baja prioridad.
 
-### 2. xG (expected goals) y estadísticas de tiro — calidad, no solo resultado 🟡
+### 1. xG (expected goals) y estadísticas de tiro — calidad, no solo resultado 🟡
 **Por qué.** El marcador tiene mucho ruido; el **xG mide la calidad de las
 ocasiones** y predice mejor el rendimiento futuro que los goles. Permite ponderar
 la forma reciente por mérito real.
@@ -39,13 +33,13 @@ la forma reciente por mérito real.
 **Integración.** Sustituir/combinar goles por xG en el ajuste de fuerza; usar
 medias móviles de xG a favor/en contra como features.
 
-### 3. Valor de mercado / fuerza de plantilla — fuerza estructural 🔵
+### 2. Valor de mercado / fuerza de plantilla — fuerza estructural 🔵
 **Por qué.** El **valor de mercado agregado** (Transfermarkt) correlaciona fuerte
 con el nivel de la selección y cubre a equipos con poco histórico.
 - **Transfermarkt** (scraping/licencia) 🔵; algunos datasets derivados en GitHub 🟢.
 **Integración.** Feature de prior por equipo; útil para los debutantes 2026.
 
-### 4. Cuotas de casas de apuestas — consenso de mercado para calibración 🟡
+### 3. Cuotas de casas de apuestas — consenso de mercado para calibración 🟡
 **Por qué.** Las **odds de cierre** (sobre todo Pinnacle) son un benchmark
 difícil de batir; sirven para **calibrar y validar** (¿estamos por encima del
 mercado?) y para blending.
@@ -53,7 +47,7 @@ mercado?) y para blending.
 **Integración.** Convertir odds→probabilidades (quitando el margen) y comparar
 con el modelo (Brier/log-loss); opcional: blending modelo+mercado.
 
-### 5. Contexto del partido — ajustes finos 🟢/🟡
+### 4. Contexto del partido — ajustes finos 🟢/🟡
 - **Sede/altitud/clima**: Ciudad de México (2240 m) y calor en sedes de EE. UU.
   afectan al ritmo y a los goles. Datos de altitud por sede (estáticos) 🟢; clima
   por API (Open-Meteo) 🟡.
@@ -63,7 +57,7 @@ con el modelo (Brier/log-loss); opcional: blending modelo+mercado.
 - **Localía real de anfitriones (MEX/USA/CAN)**: aplicar ventaja de localía solo a
   los anfitriones en sus sedes (hoy las predicciones del torneo son neutrales).
 
-### 6. Lesiones/sanciones en vivo y alineaciones confirmadas 🟡
+### 5. Lesiones/sanciones en vivo y alineaciones confirmadas 🟡
 **Por qué.** Ya ajustamos por disponibilidad; con **alineaciones confirmadas**
 ~1 h antes del partido el ajuste es mucho más preciso.
 - **API-Football** (`/injuries`, `/fixtures/lineups`), **TheSportsDB**. 🟡.

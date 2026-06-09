@@ -28,3 +28,11 @@ async def list_changes(limit: int = 50, db: AsyncSession = Depends(get_db)):
 async def trigger_sync(db: AsyncSession = Depends(get_db)):
     """Lanza una verificación manual inmediata contra la fuente oficial."""
     return await sync_official_data(db, default_provider(), trigger="manual")
+
+
+@router.post("/recompute")
+async def trigger_recompute(db: AsyncSession = Depends(get_db)):
+    """Reingiere resultados y, si cambian, recalcula modelo, predicciones y simulación."""
+    from app.services.recompute import recompute_pipeline
+
+    return await recompute_pipeline(db, trigger="manual")

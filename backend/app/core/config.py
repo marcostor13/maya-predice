@@ -45,10 +45,18 @@ class Settings(BaseSettings):
     history_since_year: int = 2018
     history_team_filter: str = "both"  # both | any | all
     model_decay_xi: float = 0.0015  # decaimiento temporal por día (~vida media 1.3 años)
+    elo_prior_weight: float = 0.5   # peso del prior Elo (0 = sin prior)
 
     # --- Ajuste por disponibilidad de jugadores ---
     enable_availability_adjustment: bool = True
     availability_adj_strength: float = 0.5
+
+    # --- Simulación del torneo ---
+    simulation_iterations: int = 5000
+
+    # --- Actualización en vivo (recálculo al terminar partidos) ---
+    enable_live_updates: bool = True
+    live_poll_minutes: int = 60  # cada cuánto se reingieren resultados durante el torneo
 
     @property
     def cors_origins_list(self) -> list[str]:
