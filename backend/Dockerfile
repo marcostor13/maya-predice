@@ -16,7 +16,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+RUN chmod +x start.sh
+
 EXPOSE 8000
 
-# Aplica migraciones y arranca el servidor
-CMD ["sh", "-c", "alembic upgrade head && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 -w 2"]
+# Espera la DB, aplica migraciones y arranca el servidor.
+CMD ["sh", "start.sh"]

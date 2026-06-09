@@ -236,3 +236,4 @@ partidos con pronóstico) a los suscriptores activos.
 | No llegan emails | SMTP mal o `NOTIFICATIONS_ENABLED=false` | Revisa credenciales y SPF/DKIM; prueba `python -m app.data.notify --force`. |
 | Rutas dan 404 al recargar en Netlify | Falta redirección SPA | Ya está en `netlify.toml`; confirma el publish dir. |
 | `No module named maya-predice-backend` (reinicio en bucle) | Coolify usa Nixpacks, no el Dockerfile | Cambia **Build Pack → Dockerfile** y Base Directory `backend`. El `backend/Procfile` también lo corrige si se queda en Nixpacks. |
+| "New container started" y luego "No containers are running" | El contenedor crashea al arrancar: `alembic` no conecta a la DB | El arranque ahora **espera a la DB** (`wait_for_db`) y deja ver el error en los logs. Revisa que `DATABASE_URL` use `postgresql+asyncpg://` y el **host interno** del PostgreSQL de Coolify, y que la DB exista. |
