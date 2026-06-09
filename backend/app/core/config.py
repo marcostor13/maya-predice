@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,17 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:4200"
     env: str = "development"
     model_version: str = "dixon-coles-v1"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        """Acepta la cadena de Coolify/Heroku (`postgres://`, `postgresql://`) y la
+        normaliza al driver async que usa la app (`postgresql+asyncpg://`)."""
+        if v.startswith("postgres://"):
+            return "postgresql+asyncpg://" + v.removeprefix("postgres://")
+        if v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v.removeprefix("postgresql://")
+        return v
 
     # --- Ingesta de datos oficiales ---
     # Fuente primaria: openfootball (dominio público, derivada del calendario FIFA).
