@@ -9,5 +9,12 @@ python -m app.core.wait_for_db || echo "[start] AVISO: la DB no respondio. Arran
 echo "[start] aplicando migraciones (alembic upgrade head)..."
 alembic upgrade head || echo "[start] AVISO: las migraciones fallaron. El servidor arranca pero la DB no esta lista."
 
+# Carga inicial automatica en segundo plano (idempotente: solo si la base esta
+# vacia). No bloquea el arranque de Gunicorn ni el healthcheck.
+if [ "${ENABLE_BOOTSTRAP:-true}" = "true" ]; then
+  echo "[start] lanzando carga inicial en segundo plano (si la base esta vacia)..."
+  python -m app.data.bootstrap &
+fi
+
 echo "[start] arrancando Gunicorn en 0.0.0.0:${PORT:-8000}..."
 exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b "0.0.0.0:${PORT:-8000}" -w 2

@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     enable_live_updates: bool = True
     live_poll_minutes: int = 60  # cada cuánto se reingieren resultados durante el torneo
 
+    # Carga inicial automática al arrancar (solo si la base está vacía).
+    enable_bootstrap: bool = True
+
     # --- Notificaciones por email (suscriptores) ---
     notifications_enabled: bool = False
     smtp_host: str = ""
