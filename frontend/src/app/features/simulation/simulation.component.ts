@@ -22,9 +22,9 @@ import { listStagger } from '../../core/util/animations';
             selección de avanzar y de levantar la copa.
           </p>
         </div>
-        <button class="btn" (click)="run()" [disabled]="running()">
-          @if (running()) { <span class="spinner" style="width:18px;height:18px"></span> Simulando… }
-          @else { Ejecutar simulación 🚀 }
+        <button class="btn ghost" (click)="refresh()" [disabled]="running()" title="Volver a cargar">
+          @if (running()) { <span class="spinner" style="width:18px;height:18px"></span> }
+          @else { ↻ Actualizar }
         </button>
       </header>
 
@@ -73,7 +73,7 @@ import { listStagger } from '../../core/util/animations';
       } @else {
         <div class="card empty">
           <div class="dice floaty">🎲</div>
-          <p class="muted">Aún no hay simulación. Pulsa “Ejecutar simulación”.</p>
+          <p class="muted">Preparando las predicciones del torneo… vuelve en un momento.</p>
         </div>
       }
     </div>
@@ -131,9 +131,10 @@ export class SimulationComponent {
     });
   }
 
-  run(): void {
+  // Recarga la última simulación ya calculada en el servidor (rápido, sin recomputar).
+  refresh(): void {
     this.running.set(true);
-    this.api.runSimulation().subscribe({
+    this.api.getSimulation().subscribe({
       next: (s) => { this.sim.set(s); this.running.set(false); },
       error: () => this.running.set(false),
     });

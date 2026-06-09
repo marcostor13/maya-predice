@@ -25,15 +25,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(api_router)
+
+# CORS: "*" permite cualquier origen (API pública). Con orígenes explícitos se
+# habilitan credenciales; con "*" el navegador exige allow_credentials=False.
+_origins = settings.cors_origins_list
+_allow_all = "*" in _origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_origins=["*"] if _allow_all else _origins,
+    allow_credentials=not _allow_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.include_router(api_router)
 
 
 @app.get("/health", tags=["health"])

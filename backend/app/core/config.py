@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://maya:maya@localhost:5432/maya_predice"
-    cors_origins: str = "http://localhost:4200"
+    # API pública: por defecto permite cualquier origen ("*"). Restringe en
+    # producción poniendo las URLs (separadas por coma) si lo prefieres.
+    cors_origins: str = "*"
     env: str = "development"
     model_version: str = "dixon-coles-v1"
 

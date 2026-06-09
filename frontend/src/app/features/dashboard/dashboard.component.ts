@@ -73,8 +73,7 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
           </div>
         } @else {
           <div class="card empty">
-            <p class="muted">Aún no hay simulación.</p>
-            <a routerLink="/simulacion" class="btn">Generar predicciones 🎲</a>
+            <p class="muted">Preparando las predicciones… vuelve en un momento.</p>
           </div>
         }
       </section>

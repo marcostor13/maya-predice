@@ -17,4 +17,6 @@ if [ "${ENABLE_BOOTSTRAP:-true}" = "true" ]; then
 fi
 
 echo "[start] arrancando Gunicorn en 0.0.0.0:${PORT:-8000}..."
-exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b "0.0.0.0:${PORT:-8000}" -w 2
+# --timeout 180: el entrenamiento del modelo/simulación puede tardar; evita que
+# el worker muera (el default de 30s cortaba las peticiones pesadas).
+exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b "0.0.0.0:${PORT:-8000}" -w 2 --timeout 180

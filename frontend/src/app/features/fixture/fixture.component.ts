@@ -62,6 +62,11 @@ const STAGE_LABEL: Record<MatchStage, string> = {
                             <span class="b draw" [style.flex]="p.p_draw"></span>
                             <span class="b away" [style.flex]="p.p_away"></span>
                           </div>
+                          <div class="odds">
+                            <span class="home">{{ pct(p.p_home) }}</span>
+                            <span class="draw">X {{ pct(p.p_draw) }}</span>
+                            <span class="away">{{ pct(p.p_away) }}</span>
+                          </div>
                         } @else { <span class="vs muted">vs</span> }
                       }
                     </div>
@@ -105,6 +110,10 @@ const STAGE_LABEL: Record<MatchStage, string> = {
       .score { font-family: 'Poppins'; font-weight: 800; font-size: 1.15rem; color: var(--primary); }
       .mini-bars { display: flex; height: 7px; border-radius: 999px; overflow: hidden; gap: 2px; }
       .b { min-width: 2px; border-radius: 999px; } .b.home { background: var(--primary); } .b.draw { background: var(--muted); } .b.away { background: var(--accent); }
+      .odds { display: flex; justify-content: space-between; font-size: .72rem; margin-top: 5px; font-variant-numeric: tabular-nums; }
+      .odds .home { color: var(--primary); font-weight: 700; }
+      .odds .draw { color: var(--muted); }
+      .odds .away { color: var(--accent); font-weight: 700; }
       .venue { font-size: .78rem; text-align: right; }
       @media (max-width: 720px) {
         .match { grid-template-columns: 60px 1fr; }
@@ -168,6 +177,7 @@ export class FixtureComponent {
   code(id?: number) { return id ? this.teamById().get(id)?.code : undefined; }
   name(id?: number) { return id ? this.teamById().get(id)?.name : undefined; }
   pred(id: number) { return this.predByMatch().get(id); }
+  pct(v: number) { return Math.round(v * 100) + '%'; }
   day(iso?: string) { return iso ? new Date(iso).toLocaleDateString('es', { day: '2-digit', month: 'short' }) : '—'; }
   time(iso?: string) { return iso ? new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : ''; }
 }
