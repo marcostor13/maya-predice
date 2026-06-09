@@ -172,6 +172,17 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
       .b.home { background: var(--primary); } .b.draw { background: var(--muted); } .b.away { background: var(--accent); }
       .odds { font-size: .72rem; margin-top: 5px; }
       .empty { padding: 30px; text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+      @media (max-width: 560px) {
+        .hero-inner { min-height: auto; padding: 10px 0 20px; }
+        .lead { font-size: .95rem; }
+        .cta { width: 100%; }
+        .cta .btn { flex: 1; justify-content: center; }
+        .match { padding: 12px 12px; gap: 8px; }
+        .center { width: 120px; }
+        .side .flag { font-size: 1.4rem; }
+        .side .code { font-size: .85rem; }
+        .head h2 { font-size: 1.2rem; }
+      }
     `,
   ],
 })
