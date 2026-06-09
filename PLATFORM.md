@@ -66,6 +66,19 @@ Para cada partido:
   cruces eliminatorios) para mantener la plataforma siempre al día.
 - Auditoría consultable: historial de verificaciones y log de "qué cambió".
 
+### F13 — Frontend web animado (implementada)
+- **Dashboard** con hero animado, favoritos al título, próximos partidos con
+  barras de probabilidad y llamada a la suscripción.
+- **Fixture completo**: 104 partidos por fase/grupo, horarios en zona local,
+  resultados y pronósticos, con filtros.
+- **Equipos**: las 48 selecciones y, por equipo, su **plantilla** (jugadores por
+  posición, suplentes, entrenador) con el **estado** de cada uno.
+- **Simulación interactiva**: el usuario ejecuta el Monte Carlo y ve el podio y el
+  ranking de probabilidades de campeón animados.
+- Diseño cuidado y muy animado (tema oscuro, glassmorphism, transiciones,
+  banderas). **Footer con autoría: Marcos Torres** (web, Instagram, Facebook,
+  TikTok) y **suscripción por correo** para recibir predicciones y novedades.
+
 ### F12 — Actualización en vivo durante el torneo (implementada)
 - A medida que **terminan los partidos**, la plataforma reingiere los resultados y
   **recalcula automáticamente** las estadísticas del modelo, las predicciones de

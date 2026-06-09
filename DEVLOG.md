@@ -238,3 +238,42 @@ al terminar partidos, actualizar estadísticas y predicciones de lo venidero.
 - Bracket oficial 2026 exacto (hoy siembra por fuerza).
 - Localía real de anfitriones; xG / valor de mercado / cuotas (DATA_SOURCES).
 - Calibración/backtesting (Brier, log-loss) y frontend (dashboard + simulación).
+
+---
+
+## Entrada 006 — Frontend Angular animado + suscripción por email
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Construir la web: dashboard animado, simulación interactiva, info de
+cada equipo, fixture completo con horarios y resultados; muy animado y con buen
+diseño; footer con autoría (Marcos Torres + redes) y opción de suscripción por
+correo para recibir predicciones.
+
+**Qué se implementó.**
+- **Backend:** modelo `Subscriber` + endpoints `POST /subscribers` (idempotente,
+  email normalizado y validado) y `GET /subscribers/count`; endpoint
+  `GET /predictions` (última predicción por partido, para el fixture/dashboard sin
+  N llamadas). Migración de la tabla. `pydantic[email]` en requirements.
+- **Frontend Angular 18 (standalone + signals):**
+  - Tema global (Poppins/Inter, glassmorphism, gradientes) y librería de
+    animaciones (keyframes CSS + `@angular/animations` con `stagger`).
+  - Navbar sticky; footer con **autoría Marcos Torres** (web, IG, FB, TikTok).
+  - `shared/subscribe`: formulario de suscripción por email.
+  - Páginas (rutas lazy): `dashboard` (hero, favoritos, próximos partidos),
+    `fixture` (104 partidos, filtros, horarios locales, resultados, pronósticos),
+    `teams` (48 selecciones por grupo), `team-detail` (plantilla por posición +
+    estado de cada jugador + DT), `simulation` (ejecutar Monte Carlo, podio y
+    ranking de probabilidades de campeón).
+  - `ApiService` ampliado; modelos TS; util de banderas emoji (48) y animaciones.
+
+**Verificación.**
+- Backend: `POST /subscribers` 201 + idempotencia (email case-insensitive) +
+  rechazo de email inválido + `count`, contra PostgreSQL. `GET /predictions` OK.
+  54 tests del backend en verde.
+- Frontend: **`npm run build` compila** (bundle 360 kB inicial / 98 kB transfer;
+  chunks lazy por ruta). Se corrigieron usos de `as` en `@else if` (Angular solo
+  lo permite en el `@if` primario) anidando los bloques.
+
+**Pendientes que dejó.**
+- Envío real de emails a suscriptores (SMTP/proveedor) — hoy solo se almacenan.
+- CI/CD Netlify (front) + Coolify (back); calibración/backtesting; bracket oficial.

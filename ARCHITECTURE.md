@@ -52,6 +52,13 @@
   └── shared/            ← componentes UI reutilizables
   ```
 - Build a estático → **Netlify**. `environment.ts` apunta a la URL del backend.
+- **Páginas (rutas lazy):** dashboard animado (`/`), fixture completo con horarios
+  y resultados (`/fixture`), selecciones (`/equipos`) y detalle con plantilla y
+  estados (`/equipos/:code`), simulación interactiva del torneo (`/simulacion`).
+- **UX:** tema oscuro con glassmorphism, animaciones (CSS keyframes + Angular
+  `@angular/animations` con stagger), banderas emoji, barras de probabilidad.
+  Navbar + footer con autoría (Marcos Torres + redes) y formulario de
+  **suscripción por email** (`shared/subscribe`). Verificado: `npm run build` OK.
 
 ### 2.2 Backend — FastAPI
 Arquitectura en capas, una responsabilidad por capa:
@@ -172,6 +179,8 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | GET    | `/api/v1/simulate/tournament`     | Última simulación (probabilidades).  |
 | POST   | `/api/v1/simulate/run`            | Ejecuta una simulación Monte Carlo.  |
 | POST   | `/api/v1/sync/recompute`          | Recálculo en vivo (si hay resultados).|
+| GET    | `/api/v1/predictions`             | Última predicción de cada partido.   |
+| POST   | `/api/v1/subscribers`             | Alta de suscriptor (email).          |
 
 ## 4.b Ingesta y verificación de datos oficiales
 

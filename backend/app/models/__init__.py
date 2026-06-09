@@ -12,6 +12,7 @@ from app.models.squad import (
     SquadRole,
 )
 from app.models.sync import DataChange, SyncRun, SyncStatus
+from app.models.subscriber import Subscriber
 from app.models.team import Team, TeamStrength
 from app.models.tournament import Tournament
 
@@ -29,6 +30,7 @@ __all__ = [
     "SimulationRun",
     "SquadDiscrepancy",
     "SquadRole",
+    "Subscriber",
     "SyncRun",
     "SyncStatus",
     "Team",

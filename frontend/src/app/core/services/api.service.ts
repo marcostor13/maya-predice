@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { Match, Prediction, Team } from '../models';
+import { Match, Prediction, Simulation, Squad, Team } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -14,10 +14,6 @@ export class ApiService {
   getTeams(group?: string): Observable<Team[]> {
     const q = group ? `?group=${group}` : '';
     return this.http.get<Team[]>(`${this.base}/teams${q}`);
-  }
-
-  getTeam(id: number): Observable<Team> {
-    return this.http.get<Team>(`${this.base}/teams/${id}`);
   }
 
   // --- Matches ---
@@ -31,11 +27,33 @@ export class ApiService {
   }
 
   // --- Predictions ---
+  getPredictions(): Observable<Prediction[]> {
+    return this.http.get<Prediction[]>(`${this.base}/predictions`);
+  }
+
   getMatchPrediction(matchId: number): Observable<Prediction> {
     return this.http.get<Prediction>(`${this.base}/predictions/match/${matchId}`);
   }
 
-  runPrediction(matchId: number): Observable<Prediction> {
-    return this.http.post<Prediction>(`${this.base}/predictions/run`, { match_id: matchId });
+  // --- Squads ---
+  getSquad(code: string): Observable<Squad> {
+    return this.http.get<Squad>(`${this.base}/squads/${code}`);
+  }
+
+  // --- Simulation ---
+  getSimulation(): Observable<Simulation> {
+    return this.http.get<Simulation>(`${this.base}/simulate/tournament`);
+  }
+
+  runSimulation(): Observable<Simulation> {
+    return this.http.post<Simulation>(`${this.base}/simulate/run`, {});
+  }
+
+  // --- Subscribe ---
+  subscribe(email: string): Observable<{ status: string; message: string }> {
+    return this.http.post<{ status: string; message: string }>(
+      `${this.base}/subscribers`,
+      { email },
+    );
   }
 }

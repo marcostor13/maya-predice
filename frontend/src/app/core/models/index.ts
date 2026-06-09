@@ -21,10 +21,14 @@ export type MatchStatus = 'scheduled' | 'live' | 'finished';
 export interface Match {
   id: number;
   tournament_id: number;
-  home_team_id: number;
-  away_team_id: number;
+  external_ref: string;
+  home_team_id?: number;
+  away_team_id?: number;
+  home_placeholder?: string;
+  away_placeholder?: string;
   stage: MatchStage;
   group?: string;
+  matchday?: number;
   venue?: string;
   kickoff?: string;
   status: MatchStatus;
@@ -48,5 +52,60 @@ export interface Prediction {
   expected_home_goals: number;
   expected_away_goals: number;
   scoreline_probs?: ScorelineProb[];
+  adjustments?: Record<string, unknown>;
   created_at: string;
+}
+
+export type PlayerStatus =
+  | 'available' | 'injured' | 'suspended' | 'doubtful' | 'out' | 'unknown';
+export type Position = 'GK' | 'DEF' | 'MID' | 'FWD' | 'UNKNOWN';
+export type SquadRole = 'starter' | 'substitute' | 'reserve' | 'unknown';
+
+export interface Player {
+  id: number;
+  team_id: number;
+  full_name: string;
+  position: Position;
+  shirt_number?: number;
+  club?: string;
+  role: SquadRole;
+  status: PlayerStatus;
+  confidence: number;
+  sources_count: number;
+}
+
+export interface Coach {
+  id: number;
+  team_id: number;
+  name: string;
+  nationality?: string;
+  status: PlayerStatus;
+  confidence: number;
+  sources_count: number;
+}
+
+export interface Squad {
+  team_code: string;
+  team_name: string;
+  coach?: Coach;
+  players: Player[];
+}
+
+export interface TeamSimulation {
+  team_code: string;
+  team_name: string;
+  advance_prob: number;
+  round16_prob: number;
+  quarter_prob: number;
+  semi_prob: number;
+  final_prob: number;
+  champion_prob: number;
+}
+
+export interface Simulation {
+  run_id: number;
+  model_version: string;
+  iterations: number;
+  created_at: string;
+  teams: TeamSimulation[];
 }

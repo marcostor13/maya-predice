@@ -1,39 +1,20 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
+
+import { NavbarComponent } from './shared/navbar/navbar.component';
+import { FooterComponent } from './shared/footer/footer.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, NavbarComponent, FooterComponent],
   template: `
-    <header class="topbar">
-      <a routerLink="/" class="brand">⚽ maya-predice</a>
-      <span class="tag">Mundial 2026</span>
-    </header>
-    <main class="content">
+    <app-navbar />
+    <main>
       <router-outlet />
     </main>
+    <app-footer />
   `,
-  styles: [
-    `
-      .topbar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 16px 24px;
-        background: var(--color-surface);
-        border-bottom: 1px solid #2a3148;
-      }
-      .brand { font-weight: 700; font-size: 1.2rem; }
-      .tag {
-        font-size: 0.75rem;
-        color: var(--color-muted);
-        border: 1px solid #2a3148;
-        padding: 2px 8px;
-        border-radius: 999px;
-      }
-      .content { padding: 24px; max-width: 960px; margin: 0 auto; }
-    `,
-  ],
+  styles: [`main { min-height: 70vh; }`],
 })
 export class AppComponent {}

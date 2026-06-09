@@ -28,6 +28,17 @@ async def train(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("", response_model=list[PredictionRead])
+async def list_latest_predictions(db: AsyncSession = Depends(get_db)):
+    """Última predicción de cada partido (una por match)."""
+    stmt = (
+        select(Prediction)
+        .distinct(Prediction.match_id)
+        .order_by(Prediction.match_id, desc(Prediction.created_at))
+    )
+    return list((await db.execute(stmt)).scalars().all())
+
+
 @router.get("/match/{match_id}", response_model=PredictionRead)
 async def get_match_prediction(match_id: int, db: AsyncSession = Depends(get_db)):
     """Devuelve la predicción más reciente de un partido."""

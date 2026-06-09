@@ -134,7 +134,10 @@ cd frontend && npm install && npm start  # http://localhost:4200
       bajar `LIVE_POLL_MINUTES` (p.ej. 30).
 - [ ] Más fuentes para nutrir el modelo (xG, valor de mercado, cuotas): `DATA_SOURCES.md`.
 - [ ] Bracket oficial 2026 exacto en el simulador; calibración y backtesting.
-- [ ] Frontend: dashboard de predicciones + detalle de partido.
+- [x] **Frontend Angular animado**: dashboard, fixture con horarios/resultados,
+      equipos + detalle de plantilla, simulación interactiva, footer con autoría
+      (Marcos Torres) y **suscripción por email**. Verificado: `npm run build` OK.
+- [ ] Envío real de emails a suscriptores (SMTP/proveedor) — hoy solo se almacenan.
 - [ ] CI/CD (Netlify + Coolify) configurado en producción.
 
 > **Actualiza esta checklist** conforme avances. Es lo primero que mira Claude.

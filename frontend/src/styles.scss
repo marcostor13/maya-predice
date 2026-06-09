@@ -1,18 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
 :root {
-  --color-bg: #0f1320;
-  --color-surface: #1a2032;
-  --color-primary: #2ecc71;
-  --color-text: #e8ecf4;
-  --color-muted: #9aa3b8;
+  --bg: #0a0e1a;
+  --bg-2: #111733;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #eef2ff;
+  --muted: #9aa6c9;
+  --primary: #2dd4bf;     /* teal */
+  --primary-2: #22c55e;   /* green */
+  --accent: #a78bfa;      /* violet */
+  --gold: #fbbf24;
+  --danger: #f87171;
+  --radius: 16px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 * { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 
 body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(167, 139, 250, 0.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(45, 212, 191, 0.15), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
-a { color: var(--color-primary); text-decoration: none; }
+h1, h2, h3, .display { font-family: 'Poppins', sans-serif; margin: 0; }
+a { color: var(--primary); text-decoration: none; }
+
+.container { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: none; cursor: pointer; font-weight: 700; font-family: 'Poppins', sans-serif;
+  padding: 12px 22px; border-radius: 999px; color: #04241d;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  box-shadow: 0 8px 24px rgba(45, 212, 191, 0.35);
+}
+.btn:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.08); }
+.btn:active { transform: translateY(0) scale(.99); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.btn.ghost { background: var(--surface-2); color: var(--text); box-shadow: none; border: 1px solid var(--border); }
+
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-family: 'Poppins', sans-serif; letter-spacing: .5px;
+}
+
+.chip {
+  font-size: .72rem; color: var(--muted); border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 999px; background: var(--surface);
+}
+
+.muted { color: var(--muted); }
+
+/* ---------- Animaciones ---------- */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes pop { 0% { transform: scale(.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes growBar { from { width: 0; } }
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes glow { 0%,100% { box-shadow: 0 0 0 rgba(45,212,191,0); } 50% { box-shadow: 0 0 30px rgba(45,212,191,.4); } }
+
+.fade-up { animation: fadeUp .6s cubic-bezier(.2,.7,.2,1) both; }
+.floaty { animation: floaty 5s ease-in-out infinite; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 37%, var(--surface) 63%);
+  background-size: 800px 100%; animation: shimmer 1.4s infinite linear; border-radius: 10px;
+}
+
+.spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.18); border-top-color: var(--primary);
+  animation: spin .8s linear infinite;
+}
+
+/* barra de progreso de probabilidad */
+.prob-track { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.prob-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  animation: growBar .9s cubic-bezier(.2,.7,.2,1) both;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 999px; }

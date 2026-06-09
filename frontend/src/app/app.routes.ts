@@ -7,11 +7,24 @@ export const routes: Routes = [
       import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
-    path: 'match/:id',
+    path: 'fixture',
     loadComponent: () =>
-      import('./features/match-detail/match-detail.component').then(
-        (m) => m.MatchDetailComponent,
-      ),
+      import('./features/fixture/fixture.component').then((m) => m.FixtureComponent),
+  },
+  {
+    path: 'equipos',
+    loadComponent: () =>
+      import('./features/teams/teams.component').then((m) => m.TeamsComponent),
+  },
+  {
+    path: 'equipos/:code',
+    loadComponent: () =>
+      import('./features/team-detail/team-detail.component').then((m) => m.TeamDetailComponent),
+  },
+  {
+    path: 'simulacion',
+    loadComponent: () =>
+      import('./features/simulation/simulation.component').then((m) => m.SimulationComponent),
   },
   { path: '**', redirectTo: '' },
 ];
