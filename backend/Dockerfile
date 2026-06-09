@@ -6,11 +6,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Dependencias del sistema mínimas para numpy/scipy/asyncpg
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
+# No hace falta build-essential: numpy/scipy/pandas/asyncpg se instalan como
+# wheels precompilados (manylinux). Evitarlo reduce mucho el tamaño de la imagen
+# y el tiempo de build.
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
