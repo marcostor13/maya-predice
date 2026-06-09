@@ -141,6 +141,10 @@ cd frontend && npm install && npm start  # http://localhost:4200
       Verificado end-to-end con servidor SMTP local (BCC, HTML correcto).
 - [x] **CI/CD**: GitHub Actions (ruff + pytest + build) y guía de despliegue
       `DEPLOYMENT.md` (Coolify backend+DB, Netlify frontend, auto-deploy).
+- [x] **Backtesting/calibración**: log-loss/Brier/accuracy fuera de muestra vs
+      línea base. Verificado: el modelo supera a la base (CLI/endpoint `backtest`).
+- [x] **Baja de suscripción (unsubscribe)**: token por suscriptor, envío
+      individual con enlace propio + `List-Unsubscribe`. Verificado end-to-end.
 - [ ] Producción real: completar variables/keys en Coolify y Netlify según `DEPLOYMENT.md`.
 
 > **Actualiza esta checklist** conforme avances. Es lo primero que mira Claude.

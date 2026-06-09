@@ -127,39 +127,63 @@ async def build_digest_html(db: AsyncSession) -> tuple[str, bool]:
   </div>
   <p style="color:#94a3b8;font-size:12px;text-align:center;font-family:sans-serif">
     Recibes este correo porque te suscribiste en maya-predice.<br>
-    Desarrollado por Marcos Torres · {settings.site_url}
+    Desarrollado por Marcos Torres · {settings.site_url}<br>
+    <a href="__UNSUB__" style="color:#94a3b8">Darme de baja</a>
   </p>
 </div>"""
     return html, bool(finished)
 
 
-async def send_bulk(subject: str, html: str, recipients: list[str]) -> int:
-    """Envía un email (BCC a todos) por SMTP. Devuelve nº de destinatarios."""
-    if not recipients:
+def _unsubscribe_url(token: str) -> str:
+    return f"{settings.api_public_url.rstrip('/')}/subscribers/unsubscribe/{token}"
+
+
+async def send_digest(
+    subject: str, html_template: str, subscribers: list[Subscriber]
+) -> int:
+    """Envía el digest a cada suscriptor con su enlace de baja personalizado.
+
+    Un email por destinatario (necesario para el unsubscribe individual), todos
+    por la misma conexión SMTP. Incluye la cabecera `List-Unsubscribe`.
+    """
+    if not subscribers:
         return 0
     if not (settings.smtp_host and settings.smtp_from):
         logger.warning("SMTP no configurado; no se envía el email.")
         return 0
 
-    msg = EmailMessage()
-    msg["From"] = settings.smtp_from
-    msg["To"] = settings.smtp_from  # destinatarios reales van por BCC (privacidad)
-    msg["Subject"] = subject
-    msg.set_content("Activa el HTML para ver el contenido.")
-    msg.add_alternative(html, subtype="html")
-
-    await aiosmtplib.send(
-        msg,
-        recipients=recipients,
+    smtp = aiosmtplib.SMTP(
         hostname=settings.smtp_host,
         port=settings.smtp_port,
-        username=settings.smtp_user or None,
-        password=settings.smtp_password or None,
         start_tls=settings.smtp_start_tls,
         use_tls=settings.smtp_use_tls,
     )
-    logger.info("Email enviado a %s suscriptores.", len(recipients))
-    return len(recipients)
+    await smtp.connect()
+    if settings.smtp_user:
+        await smtp.login(settings.smtp_user, settings.smtp_password)
+
+    sent = 0
+    try:
+        for sub in subscribers:
+            unsub = _unsubscribe_url(sub.token)
+            html = html_template.replace("__UNSUB__", unsub)
+            msg = EmailMessage()
+            msg["From"] = settings.smtp_from
+            msg["To"] = sub.email
+            msg["Subject"] = subject
+            msg["List-Unsubscribe"] = f"<{unsub}>"
+            msg.set_content("Activa el HTML para ver el contenido.")
+            msg.add_alternative(html, subtype="html")
+            try:
+                await smtp.send_message(msg)
+                sent += 1
+            except aiosmtplib.SMTPException as exc:
+                logger.warning("No se pudo enviar a %s: %s", sub.email, exc)
+    finally:
+        await smtp.quit()
+
+    logger.info("Email enviado a %s suscriptores.", sent)
+    return sent
 
 
 async def notify_subscribers(db: AsyncSession, *, only_with_results: bool = True) -> int:
@@ -168,10 +192,10 @@ async def notify_subscribers(db: AsyncSession, *, only_with_results: bool = True
         logger.info("Notificaciones desactivadas (NOTIFICATIONS_ENABLED=false).")
         return 0
 
-    emails = list(
-        (await db.execute(select(Subscriber.email).where(Subscriber.active.is_(True)))).scalars()
+    subscribers = list(
+        (await db.execute(select(Subscriber).where(Subscriber.active.is_(True)))).scalars()
     )
-    if not emails:
+    if not subscribers:
         return 0
 
     html, has_results = await build_digest_html(db)
@@ -179,4 +203,4 @@ async def notify_subscribers(db: AsyncSession, *, only_with_results: bool = True
         logger.info("Sin resultados nuevos; no se envía digest.")
         return 0
 
-    return await send_bulk("⚽ maya-predice · Predicciones del Mundial 2026", html, emails)
+    return await send_digest("⚽ maya-predice · Predicciones del Mundial 2026", html, subscribers)

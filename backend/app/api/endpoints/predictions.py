@@ -28,6 +28,21 @@ async def train(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/backtest")
+async def backtest(cutoff: str | None = None):
+    """Evalúa el modelo fuera de muestra (log-loss/Brier/accuracy vs línea base)."""
+    from datetime import date
+
+    from app.services.prediction.backtest import run_backtest
+
+    cutoff_date = date.fromisoformat(cutoff) if cutoff else None
+    try:
+        result = await run_backtest(cutoff_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return result.to_dict()
+
+
 @router.get("", response_model=list[PredictionRead])
 async def list_latest_predictions(db: AsyncSession = Depends(get_db)):
     """Última predicción de cada partido (una por match)."""

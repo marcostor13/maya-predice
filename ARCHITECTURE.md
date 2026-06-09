@@ -180,7 +180,9 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | POST   | `/api/v1/simulate/run`            | Ejecuta una simulación Monte Carlo.  |
 | POST   | `/api/v1/sync/recompute`          | Recálculo en vivo (si hay resultados).|
 | GET    | `/api/v1/predictions`             | Última predicción de cada partido.   |
+| GET    | `/api/v1/predictions/backtest`    | Evaluación fuera de muestra (métricas).|
 | POST   | `/api/v1/subscribers`             | Alta de suscriptor (email).          |
+| GET    | `/api/v1/subscribers/unsubscribe/{token}` | Baja vía enlace del email.   |
 
 ## 4.b Ingesta y verificación de datos oficiales
 
@@ -274,8 +276,16 @@ La información de plantillas se obtiene de **varias fuentes** y se reconcilia p
 ### Notificaciones por email
 - `services/notifications.py` compone un *digest* HTML (resultados, favoritos al
   título, próximos partidos con pronóstico) y lo envía por SMTP (BCC) a los
-  suscriptores activos tras el refresco diario, si hubo resultados nuevos.
-  Configurable con `SMTP_*` + `NOTIFICATIONS_ENABLED`. CLI: `python -m app.data.notify`.
+  suscriptores activos tras el refresco diario, si hubo resultados nuevos. Se envía
+  **un email por destinatario** con su **enlace de baja** personalizado (token) y
+  cabecera `List-Unsubscribe`. Configurable con `SMTP_*` + `NOTIFICATIONS_ENABLED`.
+  CLI: `python -m app.data.notify`.
+
+**Backtesting (`prediction/backtest.py` + `metrics.py`).** Evaluación fuera de
+muestra: entrena con los partidos previos a una fecha de corte y mide log-loss,
+Brier y accuracy sobre los posteriores, frente a una línea base (tasas empíricas).
+CLI: `python -m app.data.backtest`. Resultado verificado: el modelo supera a la
+base en las tres métricas (log-loss 1.07 vs 1.10, accuracy 46% vs 41%).
 
 ### Local
 - `docker-compose.yml` levanta `db` (postgres) + `backend`. El frontend se corre

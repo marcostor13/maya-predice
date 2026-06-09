@@ -308,3 +308,36 @@ jornada, montar CI/CD y documentar el despliegue en Coolify + Netlify.
 - Completar en producción las variables/keys reales en Coolify y Netlify.
 - Calibración/backtesting (Brier, log-loss); bracket oficial 2026 exacto.
 - Doble opt-in / baja de suscripción (enlace unsubscribe) para cumplimiento.
+
+---
+
+## Entrada 008 — Backtesting/calibración + baja de suscripción (unsubscribe)
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Medir la precisión del modelo (calibración) y completar el email con
+un enlace de baja por cumplimiento.
+
+**Qué se implementó.**
+- **Métricas (`prediction/metrics.py`, puras):** log-loss, Brier multiclase y
+  accuracy para predicciones 1X2.
+- **Backtest (`prediction/backtest.py`):** evaluación fuera de muestra (entrena
+  pre-corte, evalúa post-corte) con Elo+prior; compara contra la línea base
+  (tasas empíricas). CLI `python -m app.data.backtest`; endpoint
+  `GET /predictions/backtest`.
+- **Unsubscribe:** `Subscriber.token` (único); endpoint
+  `GET /subscribers/unsubscribe/{token}` con página HTML de confirmación;
+  `notifications` ahora envía **un email por destinatario** con su enlace de baja
+  y cabecera `List-Unsubscribe` (antes era BCC). Config `API_PUBLIC_URL`.
+  Migración del token.
+
+**Verificación.**
+- Backtest real (corte 2024-01-01): entreno 694, test 304 → modelo log-loss
+  **1.071** (base 1.099), Brier **0.641** (0.667), accuracy **46.1%** (40.5%):
+  **supera a la base en las tres métricas**.
+- Email/baja end-to-end (SMTP local): 2 mensajes (1 destinatario c/u) con enlaces
+  de baja distintos; el endpoint da de baja con el token; el reenvío va solo a los
+  activos. 60 tests en verde; ruff limpio.
+
+**Pendientes que dejó.**
+- Doble opt-in (confirmación de alta) si se requiere; bracket oficial 2026 exacto;
+  walk-forward con reentrenos periódicos para un backtest aún más realista.

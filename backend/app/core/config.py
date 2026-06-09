@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     smtp_start_tls: bool = True   # 587 = STARTTLS; para 465 usar smtp_use_tls
     smtp_use_tls: bool = False
     site_url: str = "https://maya-predice.netlify.app"  # enlaces en el email
+    # URL pública de la API (para el enlace de baja en los emails).
+    api_public_url: str = "http://localhost:8000/api/v1"
 
     @property
     def cors_origins_list(self) -> list[str]:
