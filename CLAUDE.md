@@ -97,6 +97,9 @@ cd backend && python -m app.data.sync
 # Sincronización de plantillas multi-fuente (jugadores/suplentes/DT)
 cd backend && python -m app.data.sync_squads
 
+# Entrenar el modelo con histórico real + persistir fuerzas por equipo
+cd backend && python -m app.data.train
+
 # Tests backend
 cd backend && pytest
 
@@ -117,9 +120,12 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - [x] **Plantillas multi-fuente**: jugadores/suplentes/DT + estado, consenso de
       3 fuentes (apifootball/thesportsdb/wikidata) con confianza y discrepancias.
       Verificado end-to-end contra PostgreSQL (consenso + conflictos).
+- [x] **Modelo entrenado con histórico real** (martj42, ~49k partidos) + sede
+      neutral + fit vectorizado; **ajuste por disponibilidad** de plantilla.
+      Verificado: top ataque coherente y la predicción cambia con bajas.
 - [ ] Producción: añadir hosts de plantillas a la allowlist de Coolify + keys,
       activar `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`.
-- [ ] Ingesta de resultados históricos para entrenar el modelo (2º proveedor).
+- [ ] Más fuentes para nutrir el modelo (Elo, xG, valor de mercado): `DATA_SOURCES.md`.
 - [ ] Calibración y backtesting del modelo.
 - [ ] Frontend: dashboard de predicciones + detalle de partido.
 - [ ] CI/CD (Netlify + Coolify) configurado en producción.

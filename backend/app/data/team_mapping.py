@@ -66,6 +66,10 @@ ALIASES: dict[str, str] = {
     "Türkiye": "Turkey",
     "Côte d'Ivoire": "Ivory Coast",
     "United States": "USA",
+    # Grafías del dataset histórico (martj42/international_results)
+    "Bosnia and Herzegovina": "Bosnia & Herzegovina",
+    "Cape Verde Islands": "Cape Verde",
+    "Republic of Ireland": "Ireland",
 }
 
 
@@ -80,3 +84,9 @@ def resolve_team(name: str) -> tuple[str, str, str] | None:
 
 def is_real_team(name: str) -> bool:
     return resolve_team(name) is not None
+
+
+def resolve_history_team(name: str) -> str | None:
+    """Identificador para entrenamiento: código FIFA si es una de las 48, si no None."""
+    r = resolve_team(name)
+    return r[1] if r else None

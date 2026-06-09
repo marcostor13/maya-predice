@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.prediction.training import persist_team_strengths, train_model
 from app.services.squad_service import build_player_providers, sync_squads
 from app.services.sync_service import default_provider, sync_official_data
 
@@ -42,17 +43,26 @@ async def run_daily_sync() -> None:
             logger.exception("La verificación de partidos falló.")
 
     providers = build_player_providers()
-    if not providers:
-        logger.info("Sin fuentes de plantillas configuradas; se omite la sincronización de plantillas.")
-        return
+    if providers:
+        async with AsyncSessionLocal() as db:
+            try:
+                run = await sync_squads(db, providers, trigger="scheduled")
+                await db.commit()
+                logger.info("Plantillas: %s", run.message)
+            except Exception:
+                await db.rollback()
+                logger.exception("La verificación de plantillas falló.")
+
+    # Reentrena el modelo con los resultados actualizados y persiste las fuerzas.
     async with AsyncSessionLocal() as db:
         try:
-            run = await sync_squads(db, providers, trigger="scheduled")
+            model = await train_model(db, force=True)
+            await persist_team_strengths(db, model)
             await db.commit()
-            logger.info("Plantillas: %s", run.message)
+            logger.info("Modelo reentrenado: %s equipos.", len(model.teams))
         except Exception:
             await db.rollback()
-            logger.exception("La verificación de plantillas falló.")
+            logger.exception("El reentrenamiento del modelo falló.")
 
 
 def start_scheduler() -> None:

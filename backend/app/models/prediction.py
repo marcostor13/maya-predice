@@ -28,6 +28,10 @@ class Prediction(Base):
     # p.ej. [{"home": 2, "away": 1, "prob": 0.11}, ...]
     scoreline_probs: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
+    # Ajustes aplicados por disponibilidad de jugadores (transparencia/auditoría).
+    # p.ej. {"home": {"attack_availability": 0.92, ...}, "away": {...}, "neutral": true}
+    adjustments: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     match = relationship("Match", back_populates="predictions")

@@ -66,6 +66,15 @@ Para cada partido:
   cruces eliminatorios) para mantener la plataforma siempre al día.
 - Auditoría consultable: historial de verificaciones y log de "qué cambió".
 
+### F10 — Modelo entrenado con histórico + ajuste por bajas (implementada)
+- El modelo se **entrena con resultados históricos reales** (miles de partidos
+  internacionales) y con los resultados del propio torneo; respeta la sede neutral
+  y da más peso a lo reciente.
+- Las predicciones se **ajustan por la disponibilidad de la plantilla**: las bajas,
+  lesiones y sanciones reducen la fuerza efectiva del equipo (más en ataque o en
+  defensa según las posiciones afectadas). El ajuste aplicado queda registrado.
+- Catálogo de datos/fuentes para seguir nutriendo el modelo: ver `DATA_SOURCES.md`.
+
 ### F9 — Plantillas multi-fuente con veracidad (implementada)
 - **Plantilla completa** por selección: jugadores, suplentes y entrenador, con
   posición, dorsal, club y **estado** (disponible/lesionado/sancionado/duda/baja).

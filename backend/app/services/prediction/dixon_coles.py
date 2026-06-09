@@ -5,13 +5,15 @@ equipo, la ventaja de localía y el parámetro de dependencia rho, a partir de u
 histórico de partidos. Aplica decaimiento temporal: los partidos recientes pesan
 más en la verosimilitud.
 
-Referencia: Dixon & Coles (1997), "Modelling Association Football Scores and
-Inefficiencies in the Football Betting Market".
+Mejoras respecto al modelo base:
+- **Verosimilitud vectorizada** (numpy) → entrena con miles de partidos en
+  segundos.
+- **Campo neutral**: en sedes neutrales (caso típico de un Mundial) no se aplica
+  la ventaja de localía.
+- **Ajuste por disponibilidad**: la predicción acepta deltas de ataque/defensa
+  por equipo (p.ej. derivados de bajas/lesiones) que modifican la fuerza efectiva.
 
-Uso típico:
-    model = DixonColesModel()
-    model.fit(matches)                       # matches: lista de MatchResult
-    pred = model.predict("ARG", "BRA")       # MatchProbabilities
+Referencia: Dixon & Coles (1997).
 """
 
 from __future__ import annotations
@@ -34,16 +36,19 @@ class MatchResult:
     home_goals: int
     away_goals: int
     played_on: date | None = None
+    neutral: bool = False
+
+
+@dataclass
+class TeamAdjustment:
+    """Modificadores de fuerza efectiva (en log-espacio) de un equipo."""
+
+    attack_delta: float = 0.0
+    defense_delta: float = 0.0
 
 
 class DixonColesModel:
-    """Modelo Dixon-Coles ajustable y serializable.
-
-    Parámetros estimados:
-      - attack[team], defense[team]
-      - home_advantage (gamma)
-      - rho (dependencia para marcadores bajos)
-    """
+    """Modelo Dixon-Coles ajustable y serializable."""
 
     def __init__(self, xi: float = 0.0):
         # xi: tasa de decaimiento temporal (por día). 0 => sin decaimiento.
@@ -57,17 +62,14 @@ class DixonColesModel:
 
     # ---------- entrenamiento ----------
 
-    def _time_weights(self, matches: list[MatchResult]) -> np.ndarray:
+    def _time_weights(self, dates: list[date | None]) -> np.ndarray:
         if self.xi <= 0.0:
-            return np.ones(len(matches))
-        today = max((m.played_on for m in matches if m.played_on), default=None)
-        if today is None:
-            return np.ones(len(matches))
-        weights = []
-        for m in matches:
-            days = (today - m.played_on).days if m.played_on else 0
-            weights.append(np.exp(-self.xi * days))
-        return np.array(weights)
+            return np.ones(len(dates))
+        valid = [d for d in dates if d]
+        if not valid:
+            return np.ones(len(dates))
+        today = max(valid)
+        return np.array([np.exp(-self.xi * (today - d).days) if d else 1.0 for d in dates])
 
     def fit(self, matches: list[MatchResult]) -> DixonColesModel:
         if not matches:
@@ -76,69 +78,95 @@ class DixonColesModel:
         self.teams = sorted({t for m in matches for t in (m.home, m.away)})
         n = len(self.teams)
         idx = {t: i for i, t in enumerate(self.teams)}
-        weights = self._time_weights(matches)
 
-        # Vector de parámetros: [attack(n), defense(n), home_adv, rho]
-        # Restricción de identificabilidad: media de ataques = 0 (se aplica suave).
-        def unpack(params: np.ndarray):
+        hi = np.array([idx[m.home] for m in matches])
+        ai = np.array([idx[m.away] for m in matches])
+        hg = np.array([m.home_goals for m in matches], dtype=float)
+        ag = np.array([m.away_goals for m in matches], dtype=float)
+        not_neutral = np.array([0.0 if m.neutral else 1.0 for m in matches])
+        weights = self._time_weights([m.played_on for m in matches])
+
+        # máscaras para la corrección de Dixon-Coles (marcadores bajos)
+        m00 = (hg == 0) & (ag == 0)
+        m01 = (hg == 0) & (ag == 1)
+        m10 = (hg == 1) & (ag == 0)
+        m11 = (hg == 1) & (ag == 1)
+
+        def neg_log_likelihood(params: np.ndarray) -> float:
             attack = params[:n]
             defense = params[n : 2 * n]
             home_adv = params[2 * n]
             rho = params[2 * n + 1]
-            return attack, defense, home_adv, rho
 
-        def neg_log_likelihood(params: np.ndarray) -> float:
-            attack, defense, home_adv, rho = unpack(params)
-            ll = 0.0
-            for w, m in zip(weights, matches, strict=True):
-                hi, ai = idx[m.home], idx[m.away]
-                lam = np.exp(attack[hi] - defense[ai] + home_adv)
-                mu = np.exp(attack[ai] - defense[hi])
-                tau = _tau(m.home_goals, m.away_goals, lam, mu, rho)
-                tau = max(tau, 1e-10)
-                ll += w * (
-                    np.log(tau)
-                    - lam
-                    + m.home_goals * np.log(lam)
-                    - mu
-                    + m.away_goals * np.log(mu)
-                )
-            # penalización suave para fijar la escala (sum attack ~ 0)
-            ll -= 100.0 * (attack.mean()) ** 2
-            return -ll
+            lam = np.exp(attack[hi] - defense[ai] + home_adv * not_neutral)
+            mu = np.exp(attack[ai] - defense[hi])
 
-        x0 = np.concatenate([
-            np.zeros(n),        # attack
-            np.zeros(n),        # defense
-            np.array([0.25]),   # home advantage inicial
-            np.array([-0.1]),   # rho inicial
-        ])
-        bounds = [(-3, 3)] * (2 * n) + [(-1, 2), (-0.3, 0.3)]
+            ll = -lam + hg * np.log(lam) - mu + ag * np.log(mu)
 
+            tau = np.ones_like(lam)
+            tau = np.where(m00, 1.0 - lam * mu * rho, tau)
+            tau = np.where(m01, 1.0 + lam * rho, tau)
+            tau = np.where(m10, 1.0 + mu * rho, tau)
+            tau = np.where(m11, 1.0 - rho, tau)
+            tau = np.clip(tau, 1e-10, None)
+            ll += np.log(tau)
+
+            total = np.sum(weights * ll) - 100.0 * attack.mean() ** 2  # fija la escala
+            return -total
+
+        x0 = np.concatenate([np.zeros(n), np.zeros(n), np.array([0.25]), np.array([-0.1])])
+        bounds = [(-3, 3)] * (2 * n) + [(-1, 2), (-0.2, 0.2)]
         result = minimize(neg_log_likelihood, x0, method="L-BFGS-B", bounds=bounds)
 
-        attack, defense, home_adv, rho = unpack(result.x)
+        attack, defense = result.x[:n], result.x[n : 2 * n]
         self.attack = {t: float(attack[idx[t]]) for t in self.teams}
         self.defense = {t: float(defense[idx[t]]) for t in self.teams}
-        self.home_advantage = float(home_adv)
-        self.rho = float(rho)
+        self.home_advantage = float(result.x[2 * n])
+        self.rho = float(result.x[2 * n + 1])
         self._fitted = True
         return self
 
     # ---------- predicción ----------
 
-    def expected_goals(self, home: str, away: str) -> tuple[float, float]:
+    def expected_goals(
+        self,
+        home: str,
+        away: str,
+        *,
+        neutral: bool = False,
+        home_adj: TeamAdjustment | None = None,
+        away_adj: TeamAdjustment | None = None,
+    ) -> tuple[float, float]:
         if not self._fitted:
             raise RuntimeError("El modelo no está entrenado. Llama a fit() primero.")
         for t in (home, away):
             if t not in self.attack:
                 raise KeyError(f"Equipo desconocido para el modelo: {t}")
-        lam = float(np.exp(self.attack[home] - self.defense[away] + self.home_advantage))
-        mu = float(np.exp(self.attack[away] - self.defense[home]))
+
+        ha = home_adj or TeamAdjustment()
+        aa = away_adj or TeamAdjustment()
+        atk_h = self.attack[home] + ha.attack_delta
+        def_h = self.defense[home] + ha.defense_delta
+        atk_a = self.attack[away] + aa.attack_delta
+        def_a = self.defense[away] + aa.defense_delta
+
+        home_term = 0.0 if neutral else self.home_advantage
+        lam = float(np.exp(atk_h - def_a + home_term))
+        mu = float(np.exp(atk_a - def_h))
         return lam, mu
 
-    def predict(self, home: str, away: str) -> MatchProbabilities:
-        lam, mu = self.expected_goals(home, away)
+    def predict(
+        self,
+        home: str,
+        away: str,
+        *,
+        neutral: bool = False,
+        home_adj: TeamAdjustment | None = None,
+        away_adj: TeamAdjustment | None = None,
+    ) -> MatchProbabilities:
+        lam, mu = self.expected_goals(
+            home, away, neutral=neutral, home_adj=home_adj, away_adj=away_adj
+        )
         return match_probabilities(lam, mu, self.rho)
 
     # ---------- serialización ----------

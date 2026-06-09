@@ -108,9 +108,26 @@ el estándar para predicción de fútbol.
    marcador más probable, y para fases eliminatorias la probabilidad de avanzar.
 
 Implementación: `backend/app/services/prediction/`
-- `dixon_coles.py` — estimación de parámetros y predicción de un partido.
+- `dixon_coles.py` — estimación (verosimilitud **vectorizada**), soporte de
+  **sede neutral** y **ajuste por disponibilidad**; predicción de un partido.
 - `poisson.py` — utilidades de la distribución y matriz de marcadores.
 - `simulator.py` — simulación Monte Carlo del torneo (avance por fases).
+- `availability.py` — convierte el estado de la plantilla (bajas/lesiones) en
+  deltas de ataque/defensa que modifican la fuerza efectiva.
+- `training.py` — entrena con el histórico (martj42) + resultados del torneo,
+  cachea el modelo y persiste fuerzas en `team_strengths`.
+
+**Entrenamiento (datos que nutren el modelo).** El histórico internacional
+(`app/data/history.py`, fuente martj42) provee miles de partidos reales; se
+combinan con los resultados ya jugados del torneo. La sede neutral se respeta
+(en un Mundial casi todo es neutral) y los partidos recientes pesan más
+(decaimiento `xi`). Catálogo de fuentes adicionales sugeridas: `DATA_SOURCES.md`.
+
+**Ajuste por disponibilidad.** Antes de predecir, `prediction_service` calcula
+para cada equipo un factor de disponibilidad de ataque y defensa según su
+plantilla (posición × rol × estado) y lo aplica como delta en log-espacio. Con
+plantilla completa el delta es 0 (el ajuste solo penaliza por bajas). El detalle
+aplicado se guarda en `Prediction.adjustments`.
 
 > El modelo es **versionado** (`model_version`). Cada corrida persiste sus
 > predicciones para auditoría y backtesting.
@@ -135,6 +152,7 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | GET    | `/api/v1/squads/{code}`           | Plantilla: jugadores, suplentes, DT. |
 | GET    | `/api/v1/squads/discrepancies`    | Conflictos entre fuentes (veracidad).|
 | POST   | `/api/v1/squads/sync`             | Sincroniza plantillas (consenso).    |
+| POST   | `/api/v1/predictions/train`       | Reentrena el modelo y guarda fuerzas.|
 
 ## 4.b Ingesta y verificación de datos oficiales
 
@@ -283,3 +301,18 @@ discrepancias registradas, contra PostgreSQL real. (La conectividad real a las 3
 APIs depende de la allowlist + keys de producción.)
 **Consecuencia:** Wikidata es la fuente más ruidosa → menor prioridad en
 desempates. El estado de jugadores podrá alimentar el modelo (ajuste por bajas).
+
+### ADR-006 — Entrenamiento con histórico + ajuste por disponibilidad
+**Contexto:** el modelo necesitaba datos reales para estimar fuerzas, y había que
+conectar el estado de las plantillas con la predicción.
+**Decisión:** (1) entrenar con **martj42/international_results** (dominio público,
+~49k partidos, accesible vía GitHub) combinado con los resultados del torneo;
+verosimilitud **vectorizada** + **sede neutral** + decaimiento temporal. (2) Un
+**ajuste por disponibilidad** convierte bajas/lesiones en deltas de ataque/defensa
+(posición × rol × estado), aplicados en la predicción y registrados en
+`Prediction.adjustments`.
+**Verificado:** entrenamiento real (48 equipos en ~2 s; top ataque BEL/BRA/ESP/FRA/
+GER — coherente); predicción BRA-MAR pasa de 47%→34% de victoria local al lesionar
+3 titulares ofensivos (la disponibilidad de ataque cae a 0.44). Contra PostgreSQL.
+**Consecuencia:** `team_strengths` guarda ataque/defensa por versión; el modelo se
+cachea en proceso y se reentrena en el job diario. Más fuentes en `DATA_SOURCES.md`.

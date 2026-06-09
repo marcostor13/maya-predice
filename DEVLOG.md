@@ -140,3 +140,53 @@ consultando **3 fuentes** y cruzándolas para dar veracidad.
   equipo en API-Football/TheSportsDB con datos reales.
 - Relacionar el estado de los jugadores con el modelo de predicción (ajustar la
   fuerza del equipo según bajas/lesiones).
+
+---
+
+## Entrada 004 — Entrenamiento con histórico real + ajuste por disponibilidad
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Nutrir el modelo con datos reales y conectar el estado de las
+plantillas con la predicción (ajustar la fuerza por bajas/lesiones). Además,
+sugerir más datos/fuentes para enriquecer el modelo.
+
+**Investigación / decisiones.**
+- Fuente para entrenar: **martj42/international_results** (dominio público, ~49k
+  partidos internacionales 1872–2026, con sede neutral). **Accesible vía GitHub
+  raw** → usable ya (verificado HTTP 200, 3.7 MB).
+- Mapeo de nombres del dataset → códigos FIFA de las 48 (alias añadidos, p.ej.
+  "Bosnia and Herzegovina"). Filtro configurable `both|any|all` (por defecto
+  `both`: ~998 partidos entre las 48 desde 2018 → entrena en ~2 s).
+- **Sede neutral**: en un Mundial casi todo es neutral; el modelo ahora no aplica
+  ventaja de localía en partidos neutrales. Fit **vectorizado** (numpy) para
+  escalar a miles de partidos.
+- **Ajuste por disponibilidad**: factor de ataque/defensa por equipo = fracción
+  del peso (posición × rol) que sigue disponible; se aplica como delta en
+  log-espacio. Con plantilla completa, delta 0 (solo penaliza por bajas).
+
+**Qué se implementó.**
+- `data/history.py` (provider + `parse_results` puro), `team_mapping.resolve_history_team`.
+- `prediction/dixon_coles.py` reescrito: fit vectorizado, `neutral`, `TeamAdjustment`.
+- `prediction/availability.py` (puro): `compute_team_availability/adjustment`.
+- `prediction/training.py`: entrena (histórico + torneo), cachea modelo, persiste
+  `team_strengths`. CLI `python -m app.data.train`.
+- `prediction_service` usa modelo entrenado + ajuste; guarda `Prediction.adjustments`.
+- Endpoint `POST /predictions/train`; job diario reentrena el modelo.
+- Config: `HISTORY_*`, `MODEL_DECAY_XI`, `ENABLE_AVAILABILITY_ADJUSTMENT`,
+  `AVAILABILITY_ADJ_STRENGTH`. Migración de la columna `adjustments`.
+- **`DATA_SOURCES.md`**: catálogo de datos/fuentes sugeridas (Elo, ranking FIFA,
+  xG, valor de mercado, cuotas, contexto de partido) con estado de acceso.
+
+**Verificación (end-to-end contra PostgreSQL real).**
+- Entrenamiento con datos reales en ~2 s: 48 equipos, ventaja local 0.17,
+  rho −0.137; **top ataque BEL/BRA/ESP/FRA/GER** (coherente con la realidad).
+- Predicción BRA-MAR: sin bajas **47%/27%/26%** (1.72-1.24 goles); al lesionar 3
+  titulares ofensivos del local la disponibilidad de ataque cae a 0.44 y pasa a
+  **34%/30%/36%** (Marruecos se vuelve ligero favorito). Ajuste registrado.
+- 46 tests en verde (disponibilidad, parser histórico, modelo+ajuste, +previos).
+
+**Pendientes que dejó.**
+- Integrar Elo/ranking FIFA como prior, y xG para ponderar por calidad (DATA_SOURCES).
+- Localía real de anfitriones (MEX/USA/CAN) y contexto (altitud Ciudad de México).
+- Calibración/backtesting (Brier, log-loss) y simulación del torneo con el modelo
+  entrenado + disponibilidad.

@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     def player_sources_list(self) -> list[str]:
         return [s.strip() for s in self.player_sources.split(",") if s.strip()]
 
+    # --- Entrenamiento del modelo (histórico de resultados) ---
+    history_source_url: str = (
+        "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
+    )
+    history_since_year: int = 2018
+    history_team_filter: str = "both"  # both | any | all
+    model_decay_xi: float = 0.0015  # decaimiento temporal por día (~vida media 1.3 años)
+
+    # --- Ajuste por disponibilidad de jugadores ---
+    enable_availability_adjustment: bool = True
+    availability_adj_strength: float = 0.5
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

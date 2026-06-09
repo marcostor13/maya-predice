@@ -6,9 +6,26 @@ from app.core.database import get_db
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.schemas.prediction import PredictionRead, RunPredictionRequest
+from app.services.prediction.training import persist_team_strengths
 from app.services.prediction_service import predict_and_store, train_model
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
+
+
+@router.post("/train")
+async def train(db: AsyncSession = Depends(get_db)):
+    """Reentrena el modelo con el histórico + resultados y persiste las fuerzas."""
+    try:
+        model = await train_model(db, force=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    saved = await persist_team_strengths(db, model)
+    return {
+        "teams": len(model.teams),
+        "home_advantage": round(model.home_advantage, 4),
+        "rho": round(model.rho, 4),
+        "strengths_saved": saved,
+    }
 
 
 @router.get("/match/{match_id}", response_model=PredictionRead)
