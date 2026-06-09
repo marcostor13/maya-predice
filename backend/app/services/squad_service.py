@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,7 +112,7 @@ async def sync_squads(
             await db.execute(delete(Player).where(Player.team_id == team.id))
 
             # --- Jugadores ---
-            for name_key, obs in _group_players(squads).items():
+            for obs in _group_players(squads).values():
                 consensus = build_player_consensus(obs)
                 source_data = {
                     f: cv.by_source for f, cv in consensus.fields.items() if cv.by_source
@@ -197,6 +197,6 @@ async def sync_squads(
         run.message = f"Error: {exc}"
         raise
     finally:
-        run.finished_at = datetime.now(timezone.utc)
+        run.finished_at = datetime.now(UTC)
 
     return run

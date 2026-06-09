@@ -12,7 +12,7 @@ puede testearse sin acceso a red.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -39,14 +39,14 @@ def _parse_kickoff(date_str: str, time_str: str | None) -> datetime | None:
     if not date_str:
         return None
     if not time_str:
-        return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+        return datetime.fromisoformat(date_str).replace(tzinfo=UTC)
     m = _TIME_RE.match(time_str.strip())
     if not m:
-        return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+        return datetime.fromisoformat(date_str).replace(tzinfo=UTC)
     hour, minute, offset = int(m.group(1)), int(m.group(2)), int(m.group(3))
     local = datetime.fromisoformat(date_str).replace(hour=hour, minute=minute)
     # hora local = UTC + offset  =>  UTC = local - offset
-    return (local - timedelta(hours=offset)).replace(tzinfo=timezone.utc)
+    return (local - timedelta(hours=offset)).replace(tzinfo=UTC)
 
 
 def _normalize_group(group: str | None) -> str | None:

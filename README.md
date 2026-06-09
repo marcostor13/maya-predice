@@ -17,6 +17,9 @@ mediante un modelo estadístico (Dixon-Coles / Poisson bivariado).
 | `CLAUDE.md`        | Memoria persistente de Claude Code: estado y convenciones.|
 | `PLATFORM.md`      | Qué incluye la plataforma (alcance funcional / features). |
 | `ARCHITECTURE.md`  | Cómo está construida (arquitectura técnica, ADRs).        |
+| `DEPLOYMENT.md`    | Despliegue en producción (Coolify + Netlify), paso a paso.|
+| `DATA_SOURCES.md`  | Catálogo de datos y fuentes para nutrir el modelo.        |
+| `DEVLOG.md`        | Bitácora cronológica de lo implementado.                  |
 
 ## Inicio rápido (local)
 

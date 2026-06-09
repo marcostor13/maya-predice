@@ -58,6 +58,17 @@ class Settings(BaseSettings):
     enable_live_updates: bool = True
     live_poll_minutes: int = 60  # cada cuánto se reingieren resultados durante el torneo
 
+    # --- Notificaciones por email (suscriptores) ---
+    notifications_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "maya-predice <no-reply@maya-predice.com>"
+    smtp_start_tls: bool = True   # 587 = STARTTLS; para 465 usar smtp_use_tls
+    smtp_use_tls: bool = False
+    site_url: str = "https://maya-predice.netlify.app"  # enlaces en el email
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -33,7 +33,7 @@ def test_no_change_returns_empty():
 def test_score_change_detected():
     old = _state()
     new = _state(home_goals=2, away_goals=1, status="finished")
-    changes = dict((f, (o, n)) for f, o, n in compute_changes(old, new))
+    changes = {f: (o, n) for f, o, n in compute_changes(old, new)}
     assert "home_goals" in changes
     assert "away_goals" in changes
     assert "status" in changes

@@ -23,6 +23,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.notifications import notify_subscribers
 from app.services.recompute import recompute_pipeline
 from app.services.squad_service import build_player_providers, sync_squads
 
@@ -57,6 +58,17 @@ async def run_daily_refresh() -> None:
         except Exception:
             await db.rollback()
             logger.exception("El refresco diario falló.")
+
+    # Envía el digest por email a los suscriptores (si hay resultados nuevos).
+    async with AsyncSessionLocal() as db:
+        try:
+            sent = await notify_subscribers(db, only_with_results=True)
+            await db.commit()
+            if sent:
+                logger.info("Digest enviado a %s suscriptores.", sent)
+        except Exception:
+            await db.rollback()
+            logger.exception("El envío del digest falló.")
 
 
 async def run_live_update() -> None:

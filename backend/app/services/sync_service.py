@@ -12,7 +12,7 @@ Flujo:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +43,7 @@ TRACKED_FIELDS = (
 
 def _provider_match_to_dict(pm: ProviderMatch) -> dict:
     return {
-        "kickoff": pm.kickoff.astimezone(timezone.utc).isoformat() if pm.kickoff else None,
+        "kickoff": pm.kickoff.astimezone(UTC).isoformat() if pm.kickoff else None,
         "venue": pm.venue,
         "matchday": pm.matchday,
         "group": pm.group,
@@ -105,7 +105,7 @@ async def _ensure_teams(db: AsyncSession, matches: list[ProviderMatch]) -> dict[
 
 def _existing_match_to_dict(m: Match, id_to_code: dict[int, str]) -> dict:
     return {
-        "kickoff": m.kickoff.astimezone(timezone.utc).isoformat() if m.kickoff else None,
+        "kickoff": m.kickoff.astimezone(UTC).isoformat() if m.kickoff else None,
         "venue": m.venue,
         "matchday": m.matchday,
         "group": m.group,
@@ -210,10 +210,10 @@ async def sync_official_data(
     except Exception as exc:  # noqa: BLE001
         run.status = SyncStatus.FAILED
         run.message = f"Error: {exc}"
-        run.finished_at = datetime.now(timezone.utc)
+        run.finished_at = datetime.now(UTC)
         raise
     finally:
-        run.finished_at = datetime.now(timezone.utc)
+        run.finished_at = datetime.now(UTC)
 
     return run
 

@@ -277,3 +277,34 @@ correo para recibir predicciones.
 **Pendientes que dejó.**
 - Envío real de emails a suscriptores (SMTP/proveedor) — hoy solo se almacenan.
 - CI/CD Netlify (front) + Coolify (back); calibración/backtesting; bracket oficial.
+
+---
+
+## Entrada 007 — Envío de emails a suscriptores + CI/CD + guía de despliegue
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Enviar predicciones/novedades por email a los suscriptores tras cada
+jornada, montar CI/CD y documentar el despliegue en Coolify + Netlify.
+
+**Qué se implementó.**
+- **Emails (`services/notifications.py`):** *digest* HTML (resultados recientes,
+  favoritos al título, próximos partidos con pronóstico) enviado por SMTP en BCC
+  a los suscriptores activos. Se dispara en el refresco diario si hubo resultados.
+  Config `SMTP_*` + `NOTIFICATIONS_ENABLED`; CLI `python -m app.data.notify`.
+  `aiosmtplib` en requirements.
+- **CI:** `.github/workflows/ci.yml` — ruff + pytest (backend) y npm build (frontend).
+  Se limpió el lint del backend (ruff 0 errores; `line-length=120`, ignore UP042).
+- **CD / despliegue:** `DEPLOYMENT.md` paso a paso (PostgreSQL y app en Coolify con
+  Dockerfile + migraciones automáticas, variables de entorno, dominios, carga
+  inicial; Netlify con `netlify.toml`; CORS; SMTP; checklist y troubleshooting).
+
+**Verificación.**
+- Email end-to-end contra un servidor SMTP local (aiosmtpd): `notify_subscribers`
+  envió a 2 suscriptores; el servidor recibió 1 mensaje con ambos en BCC y el HTML
+  con cabecera, resultados, favoritos y enlace. Gate "solo con resultados" OK.
+- `ruff check app/ tests/` limpio; 54 tests backend en verde; build del frontend OK.
+
+**Pendientes que dejó.**
+- Completar en producción las variables/keys reales en Coolify y Netlify.
+- Calibración/backtesting (Brier, log-loss); bracket oficial 2026 exacto.
+- Doble opt-in / baja de suscripción (enlace unsubscribe) para cumplimiento.

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.match import Match
+from app.models.match import Match, MatchStatus
 from app.models.prediction import Prediction
 from app.models.squad import Player
 from app.models.team import Team
@@ -20,7 +20,6 @@ from app.services.prediction.availability import (
     PlayerImpact,
     compute_team_adjustment,
 )
-from app.models.match import Match, MatchStatus
 from app.services.prediction.dixon_coles import DixonColesModel, TeamAdjustment
 from app.services.prediction.training import train_model
 

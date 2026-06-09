@@ -2,12 +2,12 @@
 
 from datetime import date
 
+from app.models.squad import PlayerStatus, Position, SquadRole
 from app.services.prediction.availability import (
     AvailabilityConfig,
     PlayerImpact,
     compute_team_adjustment,
 )
-from app.models.squad import PlayerStatus, Position, SquadRole
 from app.services.prediction.dixon_coles import DixonColesModel, MatchResult
 
 

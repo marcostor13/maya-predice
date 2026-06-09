@@ -1,8 +1,8 @@
 """Consenso multi-fuente para datos de plantillas."""
 
 from app.services.squad.consensus import (
-    ConsensusValue,
     CoachConsensus,
+    ConsensusValue,
     PlayerConsensus,
     build_coach_consensus,
     build_player_consensus,

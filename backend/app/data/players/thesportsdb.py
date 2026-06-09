@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from app.data.players._http import get_json
 from app.data.players.base import (
-    CoachObservation,
     PlayerDataProvider,
     PlayerObservation,
     SquadObservation,

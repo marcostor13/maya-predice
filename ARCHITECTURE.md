@@ -265,8 +265,17 @@ La información de plantillas se obtiene de **varias fuentes** y se reconcilia p
 ### Backend + DB → Coolify
 - `backend/Dockerfile` construye la imagen FastAPI (uvicorn/gunicorn).
 - PostgreSQL como servicio/recurso en Coolify (volumen persistente).
-- Variables de entorno en Coolify: `DATABASE_URL`, `CORS_ORIGINS`, `ENV`.
-- Migraciones Alembic se ejecutan en el arranque (entrypoint) o como job.
+- Variables de entorno en Coolify: `DATABASE_URL`, `CORS_ORIGINS`, `ENV`, claves de
+  fuentes y SMTP. Migraciones Alembic se ejecutan en el arranque del contenedor.
+- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) corre ruff + pytest + build
+  del frontend en cada push/PR. El despliegue continuo lo hacen Coolify (auto-deploy
+  por webhook) y Netlify (deploy por git). **Guía detallada: `DEPLOYMENT.md`.**
+
+### Notificaciones por email
+- `services/notifications.py` compone un *digest* HTML (resultados, favoritos al
+  título, próximos partidos con pronóstico) y lo envía por SMTP (BCC) a los
+  suscriptores activos tras el refresco diario, si hubo resultados nuevos.
+  Configurable con `SMTP_*` + `NOTIFICATIONS_ENABLED`. CLI: `python -m app.data.notify`.
 
 ### Local
 - `docker-compose.yml` levanta `db` (postgres) + `backend`. El frontend se corre

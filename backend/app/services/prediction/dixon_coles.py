@@ -24,7 +24,7 @@ from datetime import date
 import numpy as np
 from scipy.optimize import minimize
 
-from app.services.prediction.poisson import MatchProbabilities, _tau, match_probabilities
+from app.services.prediction.poisson import MatchProbabilities, match_probabilities
 
 
 @dataclass

@@ -137,8 +137,11 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - [x] **Frontend Angular animado**: dashboard, fixture con horarios/resultados,
       equipos + detalle de plantilla, simulación interactiva, footer con autoría
       (Marcos Torres) y **suscripción por email**. Verificado: `npm run build` OK.
-- [ ] Envío real de emails a suscriptores (SMTP/proveedor) — hoy solo se almacenan.
-- [ ] CI/CD (Netlify + Coolify) configurado en producción.
+- [x] **Envío de emails a suscriptores** (digest SMTP tras el refresco diario).
+      Verificado end-to-end con servidor SMTP local (BCC, HTML correcto).
+- [x] **CI/CD**: GitHub Actions (ruff + pytest + build) y guía de despliegue
+      `DEPLOYMENT.md` (Coolify backend+DB, Netlify frontend, auto-deploy).
+- [ ] Producción real: completar variables/keys en Coolify y Netlify según `DEPLOYMENT.md`.
 
 > **Actualiza esta checklist** conforme avances. Es lo primero que mira Claude.
 

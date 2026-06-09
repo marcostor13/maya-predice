@@ -161,8 +161,9 @@ Para cada partido:
 - Dashboard (F2/F3), detalle de partido (F3), standings (F4), simulación (F5).
 - Página explicativa del modelo (F6).
 
-**Fase 4 — Producción:**
-- Deploy frontend (Netlify) + backend/DB (Coolify), dominios, CI/CD.
+**Fase 4 — Producción (implementada a nivel de plataforma):**
+- Deploy frontend (Netlify) + backend/DB (Coolify), CI (GitHub Actions) y guía
+  paso a paso en `DEPLOYMENT.md`. Emails a suscriptores vía SMTP.
 
 **Fase 5 — Mejoras:**
 - Backtesting/precisión (F7), actualizaciones en vivo durante el torneo.

@@ -11,8 +11,8 @@ from app.models.squad import (
     SquadDiscrepancy,
     SquadRole,
 )
-from app.models.sync import DataChange, SyncRun, SyncStatus
 from app.models.subscriber import Subscriber
+from app.models.sync import DataChange, SyncRun, SyncStatus
 from app.models.team import Team, TeamStrength
 from app.models.tournament import Tournament
 
