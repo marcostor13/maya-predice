@@ -16,6 +16,7 @@ COPY . .
 
 RUN chmod +x start.sh
 
+# Puerto interno (informativo). El bind real usa $PORT (por defecto 8000).
 EXPOSE 8000
 
 # Espera la DB, aplica migraciones y arranca el servidor.

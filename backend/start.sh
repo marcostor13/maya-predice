@@ -9,5 +9,5 @@ python -m app.core.wait_for_db || echo "[start] AVISO: la DB no respondio. Arran
 echo "[start] aplicando migraciones (alembic upgrade head)..."
 alembic upgrade head || echo "[start] AVISO: las migraciones fallaron. El servidor arranca pero la DB no esta lista."
 
-echo "[start] arrancando Gunicorn en 0.0.0.0:8000..."
-exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 -w 2
+echo "[start] arrancando Gunicorn en 0.0.0.0:${PORT:-8000}..."
+exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b "0.0.0.0:${PORT:-8000}" -w 2
