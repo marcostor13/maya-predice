@@ -42,6 +42,9 @@ Guía paso a paso para poner **maya-predice** en producción:
 4. **Base Directory / Dockerfile location:** `backend` (el `Dockerfile` está en `backend/Dockerfile`).
 5. **Puerto expuesto:** `8000`.
 6. **Health check path:** `/health` (la API responde `{"status":"ok"}`).
+7. **Watch Paths (importante):** en la app → *General/Advanced* pon `backend/**`.
+   Así Coolify **solo redepliega el backend cuando cambian archivos de `backend/`**
+   (no en pushes que solo tocan el frontend). Activa también **Auto Deploy**.
 
 > El `Dockerfile` ya ejecuta `alembic upgrade head` antes de arrancar Gunicorn,
 > así que **las migraciones se aplican solas** en cada despliegue.
@@ -132,9 +135,11 @@ Commit y push (Netlify reconstruye al detectar el cambio).
 1. **Add new site → Import an existing project → GitHub** → `marcostor13/maya-predice`.
 2. Netlify detecta `frontend/netlify.toml`, que ya define:
    - **Base directory:** `frontend/`
-   - **Build command:** `npm ci && npm run build`
+   - **Build command:** `npm install --no-audit --no-fund && npm run build`
    - **Publish directory:** `dist/maya-predice/browser`
    - Redirección SPA a `index.html` (rutas de Angular).
+   - **`ignore`:** cancela el build si el push **no tocó `frontend/`** (despliega
+     el frontend solo cuando hay cambios de frontend).
 3. **Branch to deploy:** `main`.
 4. Pulsa **Deploy**. Netlify te da una URL `https://<algo>.netlify.app`.
 
@@ -151,18 +156,24 @@ Commit y push (Netlify reconstruye al detectar el cambio).
 
 ## 3. CI/CD (integración y despliegue continuos)
 
-### CI — GitHub Actions
-`.github/workflows/ci.yml` ya corre en cada push/PR:
-- **Backend:** `ruff check` + `pytest`.
-- **Frontend:** `npm ci` + `npm run build`.
+**Despliegue por rutas (clave):** cada push a `main` despliega **solo lo que
+cambió** — el frontend a Netlify solo si hubo cambios en `frontend/`, y el backend
+a Coolify solo si hubo cambios en `backend/`.
 
-### CD — automático por Git
-- **Coolify:** activa **Auto Deploy** en la app (usa el webhook de GitHub). Cada
-  push a `main` reconstruye y redepliega el backend (incluye migraciones).
-- **Netlify:** despliega automáticamente cada push a la rama conectada.
+### CI — GitHub Actions (filtrado por rutas)
+Dos workflows independientes, cada uno con `paths`:
+- `.github/workflows/backend.yml` → corre **solo si cambia `backend/**`**: `ruff` + `pytest`.
+- `.github/workflows/frontend.yml` → corre **solo si cambia `frontend/**`**: `npm install` + `build`.
 
-Flujo recomendado: trabajar en una rama → PR (CI valida) → merge a `main` →
-Coolify y Netlify despliegan solos.
+### CD — automático por Git (filtrado por rutas)
+- **Coolify (backend):** **Auto Deploy** + **Watch Paths = `backend/**`** → solo
+  redepliega cuando cambian archivos del backend.
+- **Netlify (frontend):** el `ignore` de `netlify.toml`
+  (`git diff --quiet HEAD^ HEAD -- .`) **cancela el build si el push no tocó
+  `frontend/`**; despliega solo ante cambios de frontend.
+
+Flujo recomendado: trabajar en una rama → PR (los checks que aplican validan) →
+merge a `main` → cada servicio despliega solo si le corresponde.
 
 ---
 

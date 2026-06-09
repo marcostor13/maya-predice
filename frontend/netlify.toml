@@ -7,6 +7,10 @@
   # install resuelve el arbol correctamente y construye sin problema.
   command = "npm install --no-audit --no-fund && npm run build"
   publish = "dist/maya-predice/browser"
+  # Solo construye/despliega si hubo cambios en frontend/ (base dir).
+  # El comando corre desde el base dir; `git diff --quiet` devuelve 0 (sin
+  # cambios) -> Netlify cancela el build; 1 (con cambios) -> construye.
+  ignore = "git diff --quiet HEAD^ HEAD -- ."
 
 [build.environment]
   NODE_VERSION = "20"

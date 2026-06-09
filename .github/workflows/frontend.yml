@@ -1,34 +1,20 @@
-name: CI
+name: Frontend
 
+# Solo se ejecuta cuando cambian archivos del frontend.
 on:
   push:
     branches: ["**"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
   pull_request:
-    branches: ["**"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
 
 jobs:
-  backend:
-    name: Backend (lint + tests)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - name: Instalar dependencias
-        run: pip install -r requirements.txt
-      - name: Lint (ruff)
-        run: ruff check app/ tests/
-      - name: Tests (pytest)
-        run: pytest -q
-
-  frontend:
-    name: Frontend (build)
+  build:
+    name: Build
     runs-on: ubuntu-latest
     defaults:
       run:
