@@ -32,10 +32,18 @@ class Match(Base):
     tournament_id: Mapped[int] = mapped_column(
         ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
     )
-    home_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
-    away_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    # Clave estable de la fuente oficial; permite upsert idempotente.
+    external_ref: Mapped[str] = mapped_column(String(120), nullable=False, unique=True, index=True)
+
+    # Nullable: en eliminatorias los participantes pueden no estar definidos aún.
+    home_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), nullable=True, index=True)
+    away_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), nullable=True, index=True)
+    # Placeholder de la fuente cuando el equipo no está definido (p.ej. "1A", "W101").
+    home_placeholder: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    away_placeholder: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     stage: Mapped[MatchStage] = mapped_column(Enum(MatchStage), default=MatchStage.GROUP)
+    matchday: Mapped[int | None] = mapped_column(Integer, nullable=True)
     group: Mapped[str | None] = mapped_column(String(2), nullable=True)
     venue: Mapped[str | None] = mapped_column(String(120), nullable=True)
     kickoff: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

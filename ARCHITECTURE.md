@@ -129,6 +129,48 @@ Base: `/api/v1`. OpenAPI/Swagger autogenerado en `/docs`.
 | GET    | `/api/v1/predictions/match/{id}`  | Predicción de un partido.            |
 | POST   | `/api/v1/predictions/run`         | Ejecuta el modelo y persiste.        |
 | GET    | `/api/v1/simulate/tournament`     | Simulación Monte Carlo del torneo.   |
+| GET    | `/api/v1/sync/runs`               | Historial de verificaciones.         |
+| GET    | `/api/v1/sync/changes`            | Cambios detectados (qué cambió hoy). |
+| POST   | `/api/v1/sync/run`                | Verificación manual inmediata.       |
+
+## 4.b Ingesta y verificación de datos oficiales
+
+Toda la información del torneo proviene de una **fuente oficial** y se **verifica
+a diario** detectando cambios. Diseño:
+
+```
+                 ┌─────────────────────────────┐
+   Fuente        │ DataProvider (abstracción)  │
+   oficial  ───▶ │   └ OpenFootballProvider    │  parse_matches() puro/testeable
+                 └──────────────┬──────────────┘
+                                │ list[ProviderMatch] normalizado
+                 ┌──────────────▼──────────────┐
+                 │ sync_service                │  upsert idempotente por external_ref
+                 │  · _ensure_teams            │  + compute_changes (diff puro)
+                 │  · compute_changes          │
+                 └──────────────┬──────────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+        matches/teams      sync_runs         data_changes
+        (estado actual)   (auditoría)     (qué cambió y cuándo)
+```
+
+- **Proveedor (`app/data/providers/`)**: interfaz `DataProvider.fetch_matches()`.
+  Implementación primaria `OpenFootballProvider`. La fuente es swappable (ver
+  ADR-004); se puede añadir API-Football u otra detrás de la misma interfaz.
+- **`external_ref`**: clave estable por partido para upsert idempotente. Grupos:
+  `G:<grupo>:<local>-<visitante>`. Eliminatorias: `K:<fase>:<fecha>:<hora>:<sede>`
+  (la "ranura" no cambia aunque el cruce aún tenga placeholders como `W101`).
+- **Detección de cambios**: `compute_changes(old, new)` compara campos vigilados
+  (horario, sede, equipos/placeholders, resultado, estado) y registra cada
+  diferencia en `data_changes`, asociada a un `SyncRun`.
+- **Verificación diaria**: `core/scheduler.py` (APScheduler) ejecuta el sync a
+  `SYNC_HOUR_UTC` (por defecto 06:00 UTC, tras finalizar los partidos del día).
+  Alternativa: cron en Coolify con `python -m app.data.sync` (poner
+  `ENABLE_SCHEDULER=false`).
+- **Equipos**: las 48 selecciones provienen del mapeo canónico
+  `app/data/team_mapping.py` (nombre → código FIFA + confederación).
 
 ## 5. Despliegue
 
@@ -172,3 +214,19 @@ automático e integración natural con el stack científico (numpy/scipy/pandas)
 ### ADR-003 — Modelo Dixon-Coles
 **Decisión:** Dixon-Coles sobre Poisson simple por su corrección para marcadores
 bajos y su uso consolidado en predicción de fútbol. Versionado para backtesting.
+
+### ADR-004 — Fuente de datos oficiales: openfootball (no api.fifa.com directo)
+**Contexto:** se requería conectar con datos oficiales de la FIFA y verificarlos
+a diario. La FIFA **no ofrece una API pública** para desarrolladores; su API de
+contenido (`api.fifa.com`) **devuelve 403 a clientes de servidor** (verificado),
+por lo que no es fiable en producción.
+**Decisión:** usar **openfootball/worldcup.json** como fuente primaria: JSON de
+**dominio público** derivado del calendario oficial de la FIFA, sin API key y
+accesible desde servidores. Incluye los 104 partidos, 12 grupos, sedes, horarios
+y resultados (que añade tras cada partido). Se accede tras una abstracción
+`DataProvider`, de modo que se puede sustituir/complementar por un proveedor de
+pago (p.ej. API-Football) para datos en vivo más ricos sin tocar el resto.
+**Verificado:** parseo de los 104 partidos reales, ingesta y detección de cambios
+contra PostgreSQL (alta de 104 + idempotencia en re-sync + detección de resultado).
+**Consecuencia:** dependencia de un repo comunitario; mitigada por la abstracción
+de proveedor y por registrar cada cambio en `data_changes` para auditoría.

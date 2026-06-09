@@ -89,6 +89,9 @@ uvicorn app.main:app --reload          # http://localhost:8000/docs
 # Migraciones
 cd backend && alembic revision --autogenerate -m "msg" && alembic upgrade head
 
+# Ingesta + verificación de datos oficiales (manual)
+cd backend && python -m app.data.sync
+
 # Tests backend
 cd backend && pytest
 
@@ -100,9 +103,13 @@ cd frontend && npm install && npm start  # http://localhost:4200
 
 - [x] Scaffolding inicial (estructura, docs, agents/skills, configs).
 - [x] Motor de predicción Dixon-Coles base implementado (`services/prediction/`).
-- [x] Modelos ORM: Team, Match, Prediction, Tournament.
-- [x] Endpoints base: health, teams, matches, predictions.
-- [ ] Ingesta real de datos históricos (fuente por definir).
+- [x] Modelos ORM: Team, Match, Prediction, Tournament, SyncRun, DataChange.
+- [x] Endpoints base: health, teams, matches, predictions, sync.
+- [x] Migración inicial Alembic (verificada contra PostgreSQL real).
+- [x] **Datos oficiales 2026**: proveedor openfootball + sync idempotente +
+      verificación diaria con detección de cambios (104 partidos, 48 equipos).
+      Verificado end-to-end contra PostgreSQL.
+- [ ] Ingesta de resultados históricos para entrenar el modelo (2º proveedor).
 - [ ] Calibración y backtesting del modelo.
 - [ ] Frontend: dashboard de predicciones + detalle de partido.
 - [ ] CI/CD (Netlify + Coolify) configurado en producción.
@@ -116,3 +123,10 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - Las predicciones se recalculan: guardamos cada corrida con `model_version`
   y `created_at` para poder auditar y comparar.
 - Secrets nunca en el repo: usar `.env` (local) y variables en Coolify/Netlify.
+- **Datos oficiales**: fuente = openfootball (ADR-004); la API directa de FIFA da
+  403 desde servidores. El sync es idempotente por `Match.external_ref`. El job
+  diario corre vía APScheduler (`ENABLE_SCHEDULER`/`SYNC_HOUR_UTC`) o cron con
+  `python -m app.data.sync`. Cada cambio queda en `data_changes`.
+- El proveedor normaliza el grupo `"Group A"` → `"A"` (las columnas `group` son
+  `String(2)`). Las eliminatorias guardan placeholders (`W101`, `1A`) hasta que
+  se resuelve el cruce; los FK de equipo son nullable.

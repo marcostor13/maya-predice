@@ -59,6 +59,13 @@ Para cada partido:
 ### F7 (futuro) — Backtesting / precisión
 - Métricas de calibración (Brier score, log-loss) sobre partidos ya jugados.
 
+### F8 — Datos oficiales y verificación diaria (implementada)
+- Ingesta de toda la información oficial del torneo desde la fuente oficial.
+- **Verificación automática al final de cada día**: detecta y registra cambios
+  (resultados de los partidos jugados, cambios de horario/sede, resolución de
+  cruces eliminatorios) para mantener la plataforma siempre al día.
+- Auditoría consultable: historial de verificaciones y log de "qué cambió".
+
 ## 4. Datos
 
 ### Entidades
@@ -69,11 +76,19 @@ Para cada partido:
   esperados, matriz de marcadores) versionada.
 - **TeamStrength:** parámetros ataque/defensa por versión de modelo.
 
-### Fuentes de datos (a definir en ingesta)
-- Resultados históricos de selecciones (para entrenar el modelo).
-- Ranking FIFA y fixture oficial del Mundial 2026.
-- Opciones: datasets abiertos (p.ej. resultados internacionales en CSV),
-  APIs de fútbol. La ingesta vive en `backend/app/data/`.
+### Fuentes de datos
+- **Fuente oficial primaria (implementada):** `openfootball/worldcup.json` —
+  JSON de dominio público derivado del calendario oficial de la FIFA (104
+  partidos, 12 grupos, sedes, horarios y resultados). La FIFA no ofrece API
+  pública y `api.fifa.com` bloquea servidores (403), por eso se usa openfootball
+  tras una abstracción de proveedor swappable (ver ADR-004). Ingesta en
+  `backend/app/data/`.
+- **Verificación diaria (implementada):** un job programado (06:00 UTC por
+  defecto) re-consulta la fuente, hace upsert idempotente y **registra cada
+  cambio** (resultado, horario, sede, resolución de cruces) en `data_changes`,
+  con un `SyncRun` de auditoría. Disparable también manualmente vía API o CLI.
+- **Pendiente:** resultados históricos de selecciones para entrenar el modelo
+  (se puede añadir como segundo proveedor) y ranking FIFA.
 
 ## 5. Reglas de negocio
 - Las predicciones se **recalculan** y se guarda cada corrida con
