@@ -1,0 +1,18 @@
+:root {
+  --color-bg: #0f1320;
+  --color-surface: #1a2032;
+  --color-primary: #2ecc71;
+  --color-text: #e8ecf4;
+  --color-muted: #9aa3b8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+a { color: var(--color-primary); text-decoration: none; }

@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: maya-db
+    environment:
+      POSTGRES_USER: maya
+      POSTGRES_PASSWORD: maya
+      POSTGRES_DB: maya_predice
+    ports:
+      - "5432:5432"
+    volumes:
+      - maya_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maya -d maya_predice"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: maya-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://maya:maya@db:5432/maya_predice
+      CORS_ORIGINS: "http://localhost:4200"
+      ENV: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+volumes:
+  maya_pgdata:

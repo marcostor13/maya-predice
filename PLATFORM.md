@@ -1,0 +1,113 @@
+# PLATFORM.md — Qué incluye la plataforma maya-predice
+
+> Especificación de producto. Define **qué** se desarrolla (alcance funcional,
+> features, datos y reglas). Para el **cómo** técnico ver `ARCHITECTURE.md`.
+> Mantener sincronizado con la checklist de estado en `CLAUDE.md`.
+
+---
+
+## 1. Objetivo
+
+Plataforma web pública que muestra **predicciones estadísticas de los partidos
+del Mundial de Fútbol 2026**: probabilidad de victoria/empate/derrota, marcador
+más probable, goles esperados, y simulación del avance del torneo.
+
+Público: aficionados al fútbol. Tono: visual, claro, confiable (mostrar que las
+predicciones vienen de un modelo, no de opiniones).
+
+## 2. El Mundial 2026 (reglas del dominio)
+
+- **48 selecciones**, 3 países anfitriones (México, EE. UU., Canadá).
+- **Fase de grupos:** 12 grupos de 4 equipos. Avanzan los 2 primeros de cada
+  grupo + los 8 mejores terceros → **32 equipos** a eliminatorias.
+- **Eliminatorias:** dieciseisavos → octavos → cuartos → semifinales → final
+  (y tercer puesto).
+- El esquema de datos y el simulador **deben soportar este formato**.
+
+## 3. Funcionalidades (features)
+
+### F1 — Catálogo de equipos
+- Listado de las 48 selecciones con: nombre, bandera/código, confederación,
+  grupo asignado, ranking FIFA, fuerza estimada (ataque/defensa del modelo).
+- Detalle de equipo: parámetros del modelo y próximos partidos.
+
+### F2 — Calendario de partidos
+- Listado de partidos por fase y por grupo, con fecha/hora, sede y estado
+  (programado / en juego / finalizado).
+- Filtros por grupo, fase y selección.
+
+### F3 — Predicción de partido (núcleo)
+Para cada partido:
+- Probabilidad de **victoria local / empate / victoria visitante**.
+- **Goles esperados** de cada equipo (λ, μ).
+- **Marcador más probable** y top-5 marcadores con su probabilidad.
+- Si es eliminatoria: probabilidad de que cada equipo **avance**.
+
+### F4 — Tabla de grupos / standings simulados
+- Para cada grupo, probabilidad de que cada equipo termine 1.º, 2.º, etc.
+- Puntos esperados.
+
+### F5 — Simulación del torneo
+- Simulación **Monte Carlo** (N iteraciones) del bracket completo.
+- Salida: probabilidad de cada selección de llegar a octavos, cuartos, semis,
+  final y de **ser campeón**.
+
+### F6 — Comparador / detalle del modelo
+- Página que explica el modelo (Dixon-Coles) de forma accesible.
+- Versión del modelo y fecha de última actualización de predicciones.
+
+### F7 (futuro) — Backtesting / precisión
+- Métricas de calibración (Brier score, log-loss) sobre partidos ya jugados.
+
+## 4. Datos
+
+### Entidades
+- **Tournament:** edición del torneo (Mundial 2026), formato, fechas.
+- **Team:** selección (nombre, código ISO, confederación, grupo, ranking FIFA).
+- **Match:** partido (local, visitante, fase, grupo, fecha, sede, resultado).
+- **Prediction:** salida del modelo para un partido (probabilidades, goles
+  esperados, matriz de marcadores) versionada.
+- **TeamStrength:** parámetros ataque/defensa por versión de modelo.
+
+### Fuentes de datos (a definir en ingesta)
+- Resultados históricos de selecciones (para entrenar el modelo).
+- Ranking FIFA y fixture oficial del Mundial 2026.
+- Opciones: datasets abiertos (p.ej. resultados internacionales en CSV),
+  APIs de fútbol. La ingesta vive en `backend/app/data/`.
+
+## 5. Reglas de negocio
+- Las predicciones se **recalculan** y se guarda cada corrida con
+  `model_version` + timestamp (auditoría e historial).
+- Los goles esperados nunca son negativos; las probabilidades de un partido
+  suman 1.
+- La simulación respeta el formato 2026 (grupos, mejores terceros, bracket).
+- Datos de partidos finalizados son inmutables salvo corrección manual.
+
+## 6. Roadmap por fases
+
+**Fase 0 — Scaffolding (hecho):** estructura, docs, agents/skills, configs.
+
+**Fase 1 — Backend core:**
+- Modelos ORM + migraciones.
+- Motor Dixon-Coles + simulador Monte Carlo.
+- Endpoints: teams, matches, predictions, simulate.
+- Seed con equipos y grupos del Mundial 2026.
+
+**Fase 2 — Datos reales:**
+- Ingesta de históricos y fixture oficial.
+- Entrenamiento/calibración del modelo, backtesting.
+
+**Fase 3 — Frontend:**
+- Dashboard (F2/F3), detalle de partido (F3), standings (F4), simulación (F5).
+- Página explicativa del modelo (F6).
+
+**Fase 4 — Producción:**
+- Deploy frontend (Netlify) + backend/DB (Coolify), dominios, CI/CD.
+
+**Fase 5 — Mejoras:**
+- Backtesting/precisión (F7), actualizaciones en vivo durante el torneo.
+
+## 7. Fuera de alcance (por ahora)
+- Apuestas reales / dinero.
+- Cuentas de usuario y predicciones personalizadas (posible fase futura).
+- App móvil nativa (la web es responsive).

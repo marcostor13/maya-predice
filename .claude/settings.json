@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(alembic:*)",
+      "Bash(uvicorn:*)",
+      "Bash(python -m app.data.seed)",
+      "Bash(pip install:*)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
+      "Bash(npm run build)",
+      "Bash(npm start)",
+      "Bash(ng build:*)",
+      "Bash(docker compose:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}
