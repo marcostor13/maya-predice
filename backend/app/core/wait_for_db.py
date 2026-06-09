@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.database import engine
 
 
-async def wait(timeout: float = 90.0) -> None:
+async def wait(timeout: float = 15.0) -> None:
     target = settings.database_url.split("@")[-1]  # oculta usuario:contraseña
     print(f"[wait-for-db] objetivo: {target}", flush=True)
 
