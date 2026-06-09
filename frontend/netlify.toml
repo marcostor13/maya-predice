@@ -2,7 +2,10 @@
 
 [build]
   base = "frontend/"
-  command = "npm ci && npm run build"
+  # npm install (no npm ci): el arbol de Angular 18 mezcla chokidar 3 y 4, y npm
+  # genera un lock que el `npm ci` estricto rechaza (bug conocido de npm). npm
+  # install resuelve el arbol correctamente y construye sin problema.
+  command = "npm install --no-audit --no-fund && npm run build"
   publish = "dist/maya-predice/browser"
 
 [build.environment]
