@@ -38,7 +38,11 @@ Guía paso a paso para poner **maya-predice** en producción:
 ### 1.2 Crear la aplicación backend
 1. **+ New → Application → desde el repositorio Git** (`marcostor13/maya-predice`).
 2. **Branch:** `main` (o tu rama de producción).
-3. **Build Pack:** *Dockerfile*.
+3. **Build Pack:** *Dockerfile* (⚠️ **no Nixpacks**). Es imprescindible: con
+   Nixpacks, Coolify autodetecta el proyecto Python e intenta arrancar
+   `python -m maya-predice-backend` (el nombre del `pyproject.toml`), que no existe,
+   y el contenedor entra en bucle de reinicio. El repo incluye además un
+   `backend/Procfile` como red de seguridad si aun así se usa Nixpacks.
 4. **Base Directory / Dockerfile location:** `backend` (el `Dockerfile` está en `backend/Dockerfile`).
 5. **Puerto expuesto:** `8000`.
 6. **Health check path:** `/health` (la API responde `{"status":"ok"}`).
@@ -231,3 +235,4 @@ partidos con pronóstico) a los suscriptores activos.
 | Plantillas vacías | Sin claves o `PLAYER_SOURCES=fixture` | Pon claves reales y `PLAYER_SOURCES=apifootball,thesportsdb,wikidata`. |
 | No llegan emails | SMTP mal o `NOTIFICATIONS_ENABLED=false` | Revisa credenciales y SPF/DKIM; prueba `python -m app.data.notify --force`. |
 | Rutas dan 404 al recargar en Netlify | Falta redirección SPA | Ya está en `netlify.toml`; confirma el publish dir. |
+| `No module named maya-predice-backend` (reinicio en bucle) | Coolify usa Nixpacks, no el Dockerfile | Cambia **Build Pack → Dockerfile** y Base Directory `backend`. El `backend/Procfile` también lo corrige si se queda en Nixpacks. |
