@@ -47,6 +47,32 @@ Poisson/Dixon-Coles con ataque-defensa, (b) lo **anclan** con un rating tipo Elo
 (d) **se mezclan con las cuotas del mercado**, evaluando con **RPS** en
 *walk-forward*. Eso es exactamente la hoja de ruta de §4–§5.
 
+### 2.1 Caso de estudio — el supercomputador de Opta (Mundial 2026)
+
+Opta publica predicciones del Mundial 2026 (favorita: España **16,1%**, Francia
+13%, Inglaterra 11,2%, Argentina 10,4%, Portugal 7%, Brasil 6,6%, Alemania 5,1%,
+Países Bajos 3,6%). Su metodología, reconstruida de sus artículos, es muy cercana
+a la nuestra **y confirma la dirección de mejora**:
+
+| Pieza de Opta | Qué hace | ¿Lo tenemos? |
+|---|---|---|
+| Estima cada partido (1X2) combinando **cuotas del mercado + Opta Power Rankings** | El mercado es la señal más precisa; la mezcla es el núcleo | ❌ **falta el mercado** (nuestra brecha #1) |
+| **Power Rankings**: Elo jerárquico 0–100 ajustado por dif. de goles y **calidad de la competición**, actualizado a diario, sobre **~13.500 clubes** | La fuerza de una selección hereda el **nivel de club** de sus jugadores | ⚠️ parcial: tenemos Elo de selecciones, **no nivel de club** |
+| Fuerzas de **ataque/defensa** calibradas con miles de partidos históricos | Igual que nuestro Dixon-Coles | ✅ sí (~49.000 partidos) |
+| **10.000 simulaciones** Monte Carlo del torneo | Probabilidades de avance/campeón con poca varianza | ✅ (ahora a 10.000; antes 5.000) |
+
+**Lecciones accionables del caso Opta:**
+1. **El gran diferencial es la mezcla con las cuotas del mercado** (su input principal).
+   Es exactamente nuestra acción #2 y el mayor salto de precisión disponible.
+2. **El nivel de club importa**: Opta deriva la fuerza también del rendimiento en
+   clubes (Power Rankings sobre 13.500 equipos), no solo de partidos de selección.
+   Lo aproximamos con **valor de mercado del plantel** (acción #4) o ingiriendo un
+   rating tipo Power Rankings como prior extra.
+3. **10.000 simulaciones** como estándar de estabilidad (ya aplicado).
+4. **Benchmark de realidad**: sus % publicados sirven de *sanity check* — si nuestra
+   simulación se aleja mucho (p. ej. un 33% de campeón para un no-favorito), es señal
+   de bug, no de modelo (fue el caso del bracket sembrado, ya corregido).
+
 ---
 
 ## 3. Análisis de lo que ya tenemos
@@ -198,11 +224,22 @@ log-loss en validación. Mejora la fiabilidad sin reentrenar el modelo.
 
 ---
 
-## 7. Primer paso ya implementado
-Como base de medición (acción #1), se añadió el **RPS** a las métricas y al
-backtest (`prediction/metrics.py`, `backtest.py`): ahora el backtest reporta
-**RPS, log-loss, Brier y accuracy** del modelo vs la línea base. Es la brújula
-para todo lo demás.
+## 7. Pasos ya implementados
+- **Acción #1 — RPS + backtest.** El backtest reporta **RPS, log-loss, Brier y
+  accuracy** del modelo vs la línea base (`prediction/metrics.py`, `backtest.py`).
+  Es la brújula de todo lo demás.
+- **Acción #6 — ξ optimizado por RPS.** Barrido walk-forward → `ξ=0.0015` (bate la
+  base), hardcodeado en `config.py` (ver §4.1).
+- **Acción #2 — mecánica de ensamble lista.** `prediction/ensemble.py`:
+  `blend()` (combinación convexa `ω·modelo + (1−ω)·externa`) y `best_blend_weight()`
+  (elige `ω` minimizando RPS). Es la pieza central del enfoque Opta; **falta
+  conectar la fuente externa** (API de cuotas / Power Rankings).
+- **Estabilidad.** Simulación a **10.000** iteraciones (como Opta) y bracket
+  aleatorio (favoritos realistas).
+
+**Próximo gran salto:** conectar las **cuotas de cierre del mercado** (acción #2)
+y un proxy de **nivel de club / valor de mercado** (acción #4); con ambos
+enchufados al ensamble ya construido, la precisión debería acercarse a la de Opta.
 
 ## Fuentes
 - FiveThirtyEight — *How Our Club / World Cup Soccer Predictions Work*.

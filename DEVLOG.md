@@ -585,3 +585,34 @@ contra SQLite en memoria, con `importorskip` para no romper CI); migración vál
 en modo offline (`alembic upgrade --sql`); `npm run build` OK.
 
 **Pendientes que dejó.** Igual que la 015 (acciones #2–#5 de la estrategia).
+
+---
+
+## Entrada 017 — Análisis del supercomputador de Opta + ensamble y 10k sims
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Analizar la metodología del supercomputador de Opta (Mundial 2026) y
+aplicar lo accionable para maximizar la precisión.
+
+**Hallazgos (Opta).** Estima cada partido combinando **cuotas del mercado + Opta
+Power Rankings** (Elo jerárquico 0–100 sobre ~13.500 clubes, ajustado por dif. de
+goles y calidad de competición), ataque/defensa calibrados con histórico y **10.000
+simulaciones**. Favorita: España 16,1%, Francia 13%, Inglaterra 11,2%, Argentina
+10,4%. Confirma nuestras dos mayores brechas: **falta el mercado** y **falta el
+nivel de club** (lo aproxima el valor de mercado del plantel). Detalle en
+`MODEL_STUDY.md §2.1`.
+
+**Qué se implementó.**
+- **Mecánica de ensamble** (`prediction/ensemble.py`): `blend()` (combinación
+  convexa `ω·modelo + (1−ω)·externa`, renormalizada) y `best_blend_weight()` (elige
+  `ω` minimizando RPS). Es la pieza central del enfoque Opta; queda **lista para
+  enchufar** la fuente externa (cuotas / Power Rankings). 7 tests.
+- **Simulación a 10.000 iteraciones** (antes 5.000), como Opta: menos varianza en
+  las probabilidades de avance/campeón.
+- Estudio actualizado: §2.1 (caso Opta + benchmark de realidad) y §7 (pasos hechos).
+
+**Verificación.** ruff limpio; **81 tests** en verde (7 nuevos del ensamble).
+
+**Pendientes que dejó.** Conectar la fuente externa al ensamble: **API de cuotas**
+(acción #2, el mayor salto) y **valor de mercado / Power Rankings** (acción #4).
+Ambas requieren API + allowlist en Coolify → decisión del usuario.

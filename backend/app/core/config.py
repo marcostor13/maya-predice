@@ -95,7 +95,9 @@ class Settings(BaseSettings):
     availability_adj_strength: float = 0.5
 
     # --- Simulación del torneo ---
-    simulation_iterations: int = 5000
+    # 10.000 iteraciones (como el supercomputador de Opta): menos varianza en las
+    # probabilidades de avance/campeón que con 5.000.
+    simulation_iterations: int = 10000
 
     # --- Actualización en vivo (recálculo al terminar partidos) ---
     enable_live_updates: bool = True
