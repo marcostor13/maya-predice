@@ -486,3 +486,32 @@ token; JWT válido da acceso; JWT inválido / sin token / contraseña incorrecta
 
 **Pendientes.** Opcional: refresh tokens, varios roles, cambio de contraseña desde
 el panel.
+
+---
+
+## Entrada 014 — Bracket aleatorio (favoritos realistas) + admin simplificado
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Problema.** Tras una carga inicial, Bélgica salía 33% campeón. Causa: el bracket
+de eliminatorias estaba **sembrado por fuerza** (el mejor evita rivales fuertes),
+lo que regala el camino al equipo top e infla su % (amplificado si la config de
+Coolify tenía variables viejas como `HISTORY_TEAM_FILTER=both`).
+
+**Qué se implementó.**
+- **Simulador:** el cuadro ahora es un **sorteo aleatorio** (`_make_bracket`), como
+  el sorteo real, sin camino regalado. Verificado: el máximo de campeón baja a
+  ~12% (realista) en vez de inflarse.
+- **Panel admin más simple:** una acción principal **«Actualizar predicciones»**
+  (= recompute: reingiere resultados y recalcula modelo+predicciones+simulación,
+  sin borrar nada). El resto pasa a «Operaciones avanzadas» (colapsable).
+- **Info de factores:** endpoint `GET /admin/factors` y panel «Qué se tiene en
+  cuenta para la predicción» (fuerza histórica, prior Elo, forma reciente,
+  importancia, sede neutral, Dixon-Coles, disponibilidad, Monte Carlo) + la config
+  actual (filtro, ξ, prior, iteraciones, fuentes).
+
+**Verificación.** Champion realista con bracket aleatorio; ruff limpio; 67 tests en
+verde; build del frontend OK.
+
+**Pendiente / acción del usuario.** Quitar de Coolify las variables que sobrescriben
+los nuevos defaults (`HISTORY_TEAM_FILTER`, `MODEL_DECAY_XI`, `ELO_PRIOR_WEIGHT`)
+para que apliquen los valores calibrados (any / 0.004 / 2.5).

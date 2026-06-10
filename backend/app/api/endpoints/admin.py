@@ -67,6 +67,43 @@ async def check():
     return {"ok": True}
 
 
+@router.get("/factors")
+async def factors():
+    """Qué tiene en cuenta el modelo para la predicción (con la config actual)."""
+    return {
+        "config": {
+            "filtro_historico": settings.history_team_filter,
+            "desde_anio": settings.history_since_year,
+            "decaimiento_temporal_xi": settings.model_decay_xi,
+            "peso_prior_elo": settings.elo_prior_weight,
+            "ajuste_por_disponibilidad": settings.enable_availability_adjustment,
+            "iteraciones_simulacion": settings.simulation_iterations,
+            "fuentes_plantillas": settings.player_sources_list,
+        },
+        "factores": [
+            {"icon": "📊", "nombre": "Fuerza histórica (ataque y defensa)",
+             "desc": "Estimada por máxima verosimilitud de ~49.000 partidos internacionales reales (martj42)."},
+            {"icon": "🏅", "nombre": "Prior Elo",
+             "desc": "Rating ajustado por rival y diferencia de goles que ancla la fuerza "
+                     "(predice mejor que el ranking FIFA)."},
+            {"icon": "⏱️", "nombre": "Forma reciente (decaimiento temporal)",
+             "desc": "Los partidos recientes pesan más que los antiguos; el modelo mejora conforme llegan resultados."},
+            {"icon": "🎖️", "nombre": "Importancia del partido",
+             "desc": "Amistoso (0.5) < clasificatorio (1.0) < fase final (1.5): "
+                     "los amistosos con rotaciones cuentan menos."},
+            {"icon": "🏟️", "nombre": "Sede neutral",
+             "desc": "En el Mundial casi todo es cancha neutral, así que no se aplica ventaja de localía."},
+            {"icon": "🎯", "nombre": "Corrección Dixon-Coles (rho)",
+             "desc": "Ajusta los marcadores bajos (0-0, 1-0, 1-1) que el Poisson puro no captura bien."},
+            {"icon": "🩹", "nombre": "Disponibilidad de la plantilla",
+             "desc": "Bajas, lesiones, sanciones y dudas reducen la fuerza efectiva según posición y rol."},
+            {"icon": "🎲", "nombre": "Simulación Monte Carlo (sorteo aleatorio)",
+             "desc": "Miles de torneos simulados con sorteo de cuadro aleatorio "
+                     "(sin camino regalado) para avanzar/campeón."},
+        ],
+    }
+
+
 @router.get("/status")
 async def status(db: AsyncSession = Depends(get_db)):
     """Conteos del estado actual de los datos."""

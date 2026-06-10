@@ -11,25 +11,23 @@ interface Command {
   icon: string;
   title: string;
   desc: string;
-  slow?: boolean;
 }
 
-const COMMANDS: Command[] = [
-  { key: 'bootstrap', method: 'post', icon: '🚀', title: 'Carga inicial completa', slow: true,
-    desc: 'Ingiere partidos, entrena el modelo, genera predicciones, simula el torneo y carga plantillas. Úsalo la primera vez o si falta algo.' },
-  { key: 'recompute', method: 'post', icon: '🔄', title: 'Recalcular todo', slow: true,
-    desc: 'Reingiere resultados oficiales y, si hay cambios, reentrena, regenera predicciones y vuelve a simular.' },
-  { key: 'sync', method: 'post', icon: '📥', title: 'Sincronizar datos oficiales',
-    desc: 'Reingiere el calendario y los resultados oficiales (openfootball) y detecta cambios.' },
-  { key: 'train', method: 'post', icon: '🧠', title: 'Entrenar modelo', slow: true,
-    desc: 'Reentrena el modelo Dixon-Coles con el histórico y guarda las fuerzas por equipo.' },
-  { key: 'simulate', method: 'post', icon: '🎲', title: 'Simular torneo', slow: true,
-    desc: 'Ejecuta la simulación Monte Carlo y guarda las probabilidades de avanzar y de ser campeón.' },
-  { key: 'squads', method: 'post', icon: '👥', title: 'Sincronizar plantillas', slow: true,
+interface Factor { icon: string; nombre: string; desc: string; }
+
+// Operaciones avanzadas (la principal es "Actualizar" = recompute).
+const ADVANCED: Command[] = [
+  { key: 'sync', method: 'post', icon: '📥', title: 'Solo sincronizar datos oficiales',
+    desc: 'Reingiere el calendario y los resultados oficiales y detecta cambios (sin recalcular el modelo).' },
+  { key: 'train', method: 'post', icon: '🧠', title: 'Solo reentrenar modelo',
+    desc: 'Reentrena el modelo con el histórico y guarda las fuerzas por equipo.' },
+  { key: 'simulate', method: 'post', icon: '🎲', title: 'Solo re-simular torneo',
+    desc: 'Vuelve a correr la simulación Monte Carlo con el modelo actual.' },
+  { key: 'squads', method: 'post', icon: '👥', title: 'Sincronizar plantillas',
     desc: 'Trae jugadores y entrenador de las fuentes configuradas (Sportmonks…), con consenso y caché.' },
-  { key: 'notify', method: 'post', icon: '📧', title: 'Enviar emails',
-    desc: 'Envía ahora el digest de predicciones a los suscriptores activos (requiere SMTP configurado).' },
-  { key: 'backtest', method: 'get', icon: '📊', title: 'Backtest del modelo', slow: true,
+  { key: 'notify', method: 'post', icon: '📧', title: 'Enviar emails a suscriptores',
+    desc: 'Envía ahora el digest de predicciones a los suscriptores activos (requiere SMTP).' },
+  { key: 'backtest', method: 'get', icon: '📈', title: 'Backtest del modelo',
     desc: 'Evalúa la precisión fuera de muestra: log-loss, Brier y accuracy frente a la línea base.' },
 ];
 
@@ -43,7 +41,6 @@ const COMMANDS: Command[] = [
       <h1>🛠️ Panel de administración</h1>
 
       @if (!authed()) {
-        <!-- Login -->
         <div class="card login">
           <p class="muted">Inicia sesión con tu usuario administrador.</p>
           <form (ngSubmit)="login()" class="form">
@@ -57,12 +54,12 @@ const COMMANDS: Command[] = [
           <p class="muted small">Crea el usuario con <code>python -m app.data.create_admin &lt;usuario&gt; &lt;contraseña&gt;</code></p>
         </div>
       } @else {
-        <!-- Estado -->
         <div class="head">
           <h3>Hola, {{ adminUser() }}</h3>
           <button class="chip btn-ghost" (click)="loadStatus()">↻ Refrescar</button>
           <button class="chip btn-ghost" (click)="logout()">Salir</button>
         </div>
+
         @if (status(); as s) {
           <div class="stats" @listStagger>
             <div class="stat card"><b>{{ s['teams'] }}</b><span>equipos</span></div>
@@ -75,30 +72,67 @@ const COMMANDS: Command[] = [
           <p class="muted small">Última simulación: {{ s['last_simulation'] || '—' }} · modelo {{ s['model_version'] }}</p>
         }
 
-        <!-- Comandos -->
-        <h3 class="cmd-title">Comandos</h3>
-        <div class="commands" @listStagger>
-          @for (c of commands; track c.key) {
-            <div class="cmd card">
-              <div class="cmd-head">
-                <span class="ic">{{ c.icon }}</span>
-                <span class="t">{{ c.title }}</span>
-                @if (c.slow) { <span class="chip slow">puede tardar</span> }
-              </div>
-              <p class="desc muted">{{ c.desc }}</p>
-              <button class="btn" (click)="run(c)" [disabled]="running()[c.key]">
-                @if (running()[c.key]) { <span class="spinner" style="width:16px;height:16px"></span> Ejecutando… }
-                @else { Ejecutar }
-              </button>
-              @if (result()[c.key]; as r) {
-                <div class="res" [class.bad]="r.error">
-                  <b>{{ r.error ? '✗ Error' : '✓ Hecho' }}</b>
-                  <pre>{{ r.body | json }}</pre>
-                </div>
-              }
-            </div>
+        <!-- ACCIÓN PRINCIPAL -->
+        <div class="card primary">
+          <div class="p-text">
+            <h2>🔄 Actualizar predicciones</h2>
+            <p class="muted">
+              Reingiere los resultados oficiales y <b>recalcula todo con todas las variables</b>
+              (no borra nada): reentrena el modelo, regenera las predicciones de cada partido y
+              vuelve a simular el torneo. Hazlo cuando termine una jornada; el modelo se vuelve
+              más preciso conforme llegan resultados reales.
+            </p>
+          </div>
+          <button class="btn big" (click)="run(primary)" [disabled]="running()['recompute']">
+            @if (running()['recompute']) { <span class="spinner" style="width:18px;height:18px"></span> Actualizando… }
+            @else { Actualizar ahora }
+          </button>
+          @if (result()['recompute']; as r) {
+            <div class="res" [class.bad]="r.error"><b>{{ r.error ? '✗ Error' : '✓ Hecho' }}</b><pre>{{ r.body | json }}</pre></div>
           }
         </div>
+
+        <!-- QUÉ SE TIENE EN CUENTA -->
+        <h3 class="sec">📋 Qué se tiene en cuenta para la predicción</h3>
+        @if (factors(); as f) {
+          <div class="factors" @listStagger>
+            @for (fac of f; track fac.nombre) {
+              <div class="factor card">
+                <span class="fi">{{ fac.icon }}</span>
+                <div><b>{{ fac.nombre }}</b><p class="muted">{{ fac.desc }}</p></div>
+              </div>
+            }
+          </div>
+          @if (config(); as c) {
+            <p class="muted small cfg">
+              Config actual · histórico: {{ c['filtro_historico'] }} desde {{ c['desde_anio'] }} ·
+              decaimiento ξ={{ c['decaimiento_temporal_xi'] }} · prior Elo={{ c['peso_prior_elo'] }} ·
+              simulación {{ c['iteraciones_simulacion'] }} iter · fuentes: {{ asArray(c['fuentes_plantillas']).join(', ') || '—' }}
+            </p>
+          }
+        }
+
+        <!-- AVANZADO -->
+        <button class="chip toggle" (click)="showAdv.set(!showAdv())">
+          {{ showAdv() ? '▾' : '▸' }} Operaciones avanzadas
+        </button>
+        @if (showAdv()) {
+          <div class="commands" @listStagger>
+            @for (c of advanced; track c.key) {
+              <div class="cmd card">
+                <div class="cmd-head"><span class="ic">{{ c.icon }}</span><span class="t">{{ c.title }}</span></div>
+                <p class="desc muted">{{ c.desc }}</p>
+                <button class="btn ghost" (click)="run(c)" [disabled]="running()[c.key]">
+                  @if (running()[c.key]) { <span class="spinner" style="width:16px;height:16px"></span> Ejecutando… }
+                  @else { Ejecutar }
+                </button>
+                @if (result()[c.key]; as r) {
+                  <div class="res" [class.bad]="r.error"><b>{{ r.error ? '✗ Error' : '✓ Hecho' }}</b><pre>{{ r.body | json }}</pre></div>
+                }
+              </div>
+            }
+          </div>
+        }
       }
     </div>
   `,
@@ -108,8 +142,7 @@ const COMMANDS: Command[] = [
       h1 { font-size: 1.9rem; margin-bottom: 18px; }
       .login { max-width: 460px; padding: 26px; }
       .form { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
-      .row { display: flex; gap: 10px; margin-top: 14px; }
-      input { flex: 1; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
+      input { padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
               background: var(--surface-2); color: var(--text); outline: none; }
       input:focus { border-color: var(--primary); }
       .err { color: var(--danger); margin-top: 10px; }
@@ -122,15 +155,24 @@ const COMMANDS: Command[] = [
       .stat b { font-family: 'Poppins'; font-size: 1.4rem; color: var(--primary); }
       .stat span { font-size: .75rem; color: var(--muted); }
       .small { font-size: .8rem; margin-top: 8px; }
-      .cmd-title { margin: 28px 0 12px; }
+      .primary { margin-top: 22px; padding: 26px; border: 1px solid var(--primary); }
+      .primary h2 { font-size: 1.4rem; }
+      .primary .p-text { margin-bottom: 16px; }
+      .btn.big { font-size: 1.05rem; padding: 14px 28px; }
+      .sec { margin: 30px 0 12px; }
+      .factors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      @media (max-width: 760px) { .factors { grid-template-columns: 1fr; } }
+      .factor { display: flex; gap: 12px; padding: 14px 16px; }
+      .factor .fi { font-size: 1.4rem; }
+      .factor p { font-size: .85rem; margin: 4px 0 0; }
+      .cfg { background: var(--surface); border-radius: 10px; padding: 10px 14px; }
+      .toggle { cursor: pointer; display: inline-block; margin: 26px 0 12px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
       .commands { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
       @media (max-width: 760px) { .commands { grid-template-columns: 1fr; } }
       .cmd { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
       .cmd-head { display: flex; align-items: center; gap: 10px; }
-      .cmd-head .ic { font-size: 1.5rem; }
-      .cmd-head .t { font-family: 'Poppins'; font-weight: 700; }
-      .chip.slow { background: rgba(251,191,36,.15); color: var(--gold); border-color: transparent; font-size: .68rem; }
-      .desc { font-size: .9rem; flex: 1; }
+      .cmd-head .ic { font-size: 1.4rem; } .cmd-head .t { font-family: 'Poppins'; font-weight: 700; }
+      .desc { font-size: .88rem; flex: 1; }
       .cmd .btn { align-self: flex-start; }
       .res { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; font-size: .8rem; }
       .res.bad { background: rgba(248,113,113,.12); }
@@ -140,7 +182,8 @@ const COMMANDS: Command[] = [
 })
 export class AdminComponent {
   private api = inject(AdminService);
-  commands = COMMANDS;
+  advanced = ADVANCED;
+  primary: Command = { key: 'recompute', method: 'post', icon: '🔄', title: 'Actualizar', desc: '' };
 
   user = '';
   pass = '';
@@ -149,13 +192,16 @@ export class AdminComponent {
   checking = signal(false);
   loginError = signal('');
   status = signal<Record<string, unknown> | null>(null);
+  factors = signal<Factor[] | null>(null);
+  config = signal<Record<string, unknown> | null>(null);
+  showAdv = signal(false);
   running = signal<Record<string, boolean>>({});
   result = signal<Record<string, { error: boolean; body: unknown }>>({});
 
   constructor() {
     if (this.api.token()) {
       this.api.check().subscribe({
-        next: () => { this.authed.set(true); this.loadStatus(); },
+        next: () => { this.authed.set(true); this.loadStatus(); this.loadFactors(); },
         error: () => this.api.clear(),
       });
     }
@@ -172,6 +218,7 @@ export class AdminComponent {
         this.checking.set(false);
         this.pass = '';
         this.loadStatus();
+        this.loadFactors();
       },
       error: (e) => {
         this.checking.set(false);
@@ -189,6 +236,18 @@ export class AdminComponent {
 
   loadStatus(): void {
     this.api.status().subscribe({ next: (s) => this.status.set(s) });
+  }
+  loadFactors(): void {
+    this.api.run('factors', 'get').subscribe({
+      next: (r) => {
+        this.factors.set((r['factores'] as Factor[]) ?? []);
+        this.config.set((r['config'] as Record<string, unknown>) ?? null);
+      },
+    });
+  }
+
+  asArray(v: unknown): unknown[] {
+    return Array.isArray(v) ? v : [];
   }
 
   run(c: Command): void {

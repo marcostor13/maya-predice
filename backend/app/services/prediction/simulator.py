@@ -75,21 +75,12 @@ class TournamentSimulator:
         ranked = sorted(teams, key=lambda t: (pts[t], gd[t], gf[t]), reverse=True)
         return [(t, pts[t], gd[t], gf[t]) for t in ranked]
 
-    def _seeded_bracket(self, qualified: list[str]) -> list[str]:
-        """Ordena los 32 clasificados por fuerza para sembrar el bracket
-        (1 vs 32, 2 vs 31, …) y que los favoritos no se crucen pronto."""
-        def strength(code: str) -> float:
-            adj = self.adjustments.get(code, TeamAdjustment())
-            return self.model.attack.get(code, 0.0) - self.model.defense.get(code, 0.0) + (
-                adj.attack_delta - adj.defense_delta
-            )
-
-        ordered = sorted(qualified, key=strength, reverse=True)
-        n = len(ordered)
-        bracket: list[str] = []
-        for i in range(n // 2):
-            bracket.append(ordered[i])
-            bracket.append(ordered[n - 1 - i])
+    def _make_bracket(self, qualified: list[str]) -> list[str]:
+        """Sorteo del cuadro de eliminatorias: orden **aleatorio** (como el sorteo
+        real). No se siembra por fuerza: sembrar daría al mejor equipo un camino
+        regalado e inflaría irrealmente su probabilidad de ser campeón."""
+        bracket = list(qualified)
+        self.rng.shuffle(bracket)
         return bracket
 
     def run(self, groups: dict[str, list[str]], iterations: int = 5000) -> dict[str, dict]:
@@ -124,7 +115,7 @@ class TournamentSimulator:
         garantiza exactamente un campeón y probabilidades monótonas con cualquier
         tamaño de cuadro. En el cuadro real de 32 las rondas son 32→16→8→4→2→1.
         """
-        bracket = self._seeded_bracket(qualified)
+        bracket = self._make_bracket(qualified)
         if not bracket:
             return
         rounds: list[list[str]] = [list(bracket)]
