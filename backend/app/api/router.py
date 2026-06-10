@@ -15,6 +15,7 @@ from app.api.endpoints import (
 )
 
 api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(admin.auth_router)
 api_router.include_router(admin.router)
 api_router.include_router(teams.router)
 api_router.include_router(matches.router)

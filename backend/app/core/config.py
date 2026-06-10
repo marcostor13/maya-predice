@@ -15,7 +15,10 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     env: str = "development"
     model_version: str = "dixon-coles-v1"
-    # Token del panel de administración (vacío = panel deshabilitado).
+    # Panel de administración: secreto para firmar los JWT (si vacío, usa admin_token).
+    jwt_secret: str = ""
+    jwt_expire_hours: int = 12
+    # Respaldo/compatibilidad: si no hay jwt_secret, se firma con este.
     admin_token: str = ""
 
     @field_validator("database_url")

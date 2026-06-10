@@ -45,19 +45,21 @@ const COMMANDS: Command[] = [
       @if (!authed()) {
         <!-- Login -->
         <div class="card login">
-          <p class="muted">Introduce el token de administrador (variable <code>ADMIN_TOKEN</code>).</p>
-          <form (ngSubmit)="login()" class="row">
-            <input type="password" [(ngModel)]="tokenInput" name="token" placeholder="ADMIN_TOKEN" required />
+          <p class="muted">Inicia sesión con tu usuario administrador.</p>
+          <form (ngSubmit)="login()" class="form">
+            <input type="text" [(ngModel)]="user" name="user" placeholder="Usuario" autocomplete="username" required />
+            <input type="password" [(ngModel)]="pass" name="pass" placeholder="Contraseña" autocomplete="current-password" required />
             <button class="btn" type="submit" [disabled]="checking()">
               @if (checking()) { <span class="spinner" style="width:18px;height:18px"></span> } @else { Entrar }
             </button>
           </form>
           @if (loginError()) { <p class="err">{{ loginError() }}</p> }
+          <p class="muted small">Crea el usuario con <code>python -m app.data.create_admin &lt;usuario&gt; &lt;contraseña&gt;</code></p>
         </div>
       } @else {
         <!-- Estado -->
         <div class="head">
-          <h3>Estado actual</h3>
+          <h3>Hola, {{ adminUser() }}</h3>
           <button class="chip btn-ghost" (click)="loadStatus()">↻ Refrescar</button>
           <button class="chip btn-ghost" (click)="logout()">Salir</button>
         </div>
@@ -105,6 +107,7 @@ const COMMANDS: Command[] = [
       .page { padding: 32px 20px 60px; }
       h1 { font-size: 1.9rem; margin-bottom: 18px; }
       .login { max-width: 460px; padding: 26px; }
+      .form { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
       .row { display: flex; gap: 10px; margin-top: 14px; }
       input { flex: 1; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
               background: var(--surface-2); color: var(--text); outline: none; }
@@ -139,7 +142,9 @@ export class AdminComponent {
   private api = inject(AdminService);
   commands = COMMANDS;
 
-  tokenInput = '';
+  user = '';
+  pass = '';
+  adminUser = this.api.username;
   authed = signal(false);
   checking = signal(false);
   loginError = signal('');
@@ -157,16 +162,20 @@ export class AdminComponent {
   }
 
   login(): void {
-    if (!this.tokenInput) return;
+    if (!this.user || !this.pass) return;
     this.checking.set(true);
     this.loginError.set('');
-    this.api.setToken(this.tokenInput);
-    this.api.check().subscribe({
-      next: () => { this.authed.set(true); this.checking.set(false); this.loadStatus(); },
+    this.api.login(this.user, this.pass).subscribe({
+      next: (r) => {
+        this.api.setSession(r);
+        this.authed.set(true);
+        this.checking.set(false);
+        this.pass = '';
+        this.loadStatus();
+      },
       error: (e) => {
         this.checking.set(false);
-        this.api.clear();
-        this.loginError.set(e?.error?.detail ?? 'Token inválido o panel deshabilitado.');
+        this.loginError.set(e?.error?.detail ?? 'Usuario o contraseña incorrectos.');
       },
     });
   }
@@ -174,7 +183,8 @@ export class AdminComponent {
   logout(): void {
     this.api.clear();
     this.authed.set(false);
-    this.tokenInput = '';
+    this.user = '';
+    this.pass = '';
   }
 
   loadStatus(): void {

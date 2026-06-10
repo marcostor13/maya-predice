@@ -100,6 +100,9 @@ cd backend && python -m app.data.sync_squads
 # Entrenar el modelo con histórico real + persistir fuerzas por equipo
 cd backend && python -m app.data.train
 
+# Crear usuario del panel de administración (login JWT)
+cd backend && python -m app.data.create_admin <usuario> <contraseña>
+
 # Recálculo en vivo (reingesta de resultados + reentreno + predicciones + simulación)
 cd backend && python -m app.data.recompute
 

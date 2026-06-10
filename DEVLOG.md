@@ -459,3 +459,30 @@ del frontend OK.
 
 **Pendientes.** Operaciones largas (train/recompute/simulate) corren síncronas con
 `--timeout 180`; si crecieran, pasarlas a tareas en segundo plano con polling.
+
+---
+
+## Entrada 013 — Login JWT para el panel admin (usuario/contraseña en DB)
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Sustituir el token estático del panel por un **login JWT** con
+usuario y contraseña guardados (hasheados) en la base de datos.
+
+**Qué se implementó.**
+- `core/security.py` (sin dependencias): hash de contraseñas PBKDF2 y **JWT HS256
+  con la librería estándar** (HMAC). Se evitó PyJWT (el sistema traía uno roto por
+  `cryptography`); el HS256 propio es ligero y portable.
+- Modelo `AdminUser` (username único + password_hash); migración.
+- Script `python -m app.data.create_admin <usuario> <contraseña>` (o interactivo).
+- `admin.py`: `POST /admin/login` (verifica contra la DB, emite JWT); el resto de
+  endpoints exigen `Authorization: Bearer <token>`. Config `JWT_SECRET`
+  (respaldo `ADMIN_TOKEN`), `JWT_EXPIRE_HOURS`.
+- Frontend `/admin`: login con **usuario + contraseña** → guarda el JWT en
+  localStorage → lo envía como Bearer.
+
+**Verificación (contra PostgreSQL).** Script crea el usuario; login correcto emite
+token; JWT válido da acceso; JWT inválido / sin token / contraseña incorrecta →
+401. 67 tests en verde (incl. hash/JWT), ruff limpio, build del frontend OK.
+
+**Pendientes.** Opcional: refresh tokens, varios roles, cambio de contraseña desde
+el panel.

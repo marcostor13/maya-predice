@@ -4,23 +4,37 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
+interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  username: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   private http = inject(HttpClient);
   private base = environment.apiBaseUrl;
-  token = signal<string>(localStorage.getItem('admin_token') || '');
+  token = signal<string>(localStorage.getItem('admin_jwt') || '');
+  username = signal<string>(localStorage.getItem('admin_user') || '');
 
-  setToken(t: string): void {
-    this.token.set(t);
-    localStorage.setItem('admin_token', t);
+  login(username: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/admin/login`, { username, password });
+  }
+  setSession(r: LoginResponse): void {
+    this.token.set(r.access_token);
+    this.username.set(r.username);
+    localStorage.setItem('admin_jwt', r.access_token);
+    localStorage.setItem('admin_user', r.username);
   }
   clear(): void {
     this.token.set('');
-    localStorage.removeItem('admin_token');
+    this.username.set('');
+    localStorage.removeItem('admin_jwt');
+    localStorage.removeItem('admin_user');
   }
 
   private opts() {
-    return { headers: new HttpHeaders({ 'X-Admin-Token': this.token() }) };
+    return { headers: new HttpHeaders({ Authorization: `Bearer ${this.token()}` }) };
   }
 
   check(): Observable<{ ok: boolean }> {

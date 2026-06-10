@@ -1,17 +1,21 @@
 """Panel de administración: ejecuta las operaciones de mantenimiento por HTTP.
 
-Protegido por token (`ADMIN_TOKEN`): el frontend lo envía en la cabecera
-`X-Admin-Token`. Si no hay token configurado, el panel queda deshabilitado (503).
+Autenticación con **login JWT**: `POST /admin/login` con usuario y contraseña
+(guardados hasheados en `admin_users`, ver `python -m app.data.create_admin`)
+devuelve un token; el resto de endpoints exigen `Authorization: Bearer <token>`.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import create_access_token, decode_token, verify_password
+from app.models.admin_user import AdminUser
 from app.models.cache import ApiCache
 from app.models.match import Match, MatchStatus
 from app.models.prediction import Prediction
@@ -20,19 +24,46 @@ from app.models.subscriber import Subscriber
 from app.models.team import Team
 
 
-def require_admin(x_admin_token: str | None = Header(None, alias="X-Admin-Token")) -> None:
-    if not settings.admin_token:
-        raise HTTPException(status_code=503, detail="Panel de admin deshabilitado: define ADMIN_TOKEN.")
-    if x_admin_token != settings.admin_token:
-        raise HTTPException(status_code=401, detail="Token de administrador inválido.")
+def require_admin(authorization: str | None = Header(None)) -> None:
+    if not (settings.jwt_secret or settings.admin_token):
+        raise HTTPException(
+            status_code=503, detail="Panel de admin deshabilitado: define JWT_SECRET (o ADMIN_TOKEN)."
+        )
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Falta el token de acceso.")
+    if decode_token(authorization.split(" ", 1)[1]) is None:
+        raise HTTPException(status_code=401, detail="Sesión inválida o expirada.")
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+# Router de login (sin protección): emite el token.
+auth_router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@auth_router.post("/login")
+async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+    if not (settings.jwt_secret or settings.admin_token):
+        raise HTTPException(status_code=503, detail="Auth no configurada: define JWT_SECRET o ADMIN_TOKEN.")
+    user = (
+        await db.execute(select(AdminUser).where(AdminUser.username == payload.username))
+    ).scalar_one_or_none()
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos.")
+    token = create_access_token(user.username, settings.jwt_expire_hours)
+    return {"access_token": token, "token_type": "bearer", "username": user.username}
+
+
+# Router protegido: requiere un JWT válido.
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/check")
 async def check():
-    """Valida el token (lo usa el login del panel)."""
+    """Valida la sesión (lo usa el panel al cargar)."""
     return {"ok": True}
 
 
