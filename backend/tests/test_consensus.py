@@ -2,7 +2,36 @@
 
 from app.data.players.base import PlayerObservation, normalize_name
 from app.models.squad import PlayerStatus, Position, SquadRole
-from app.services.squad.consensus import build_player_consensus, merge_field
+from app.services.squad.consensus import (
+    build_player_consensus,
+    merge_field,
+    merge_first_available,
+)
+
+
+def test_photo_taken_by_priority_without_conflict():
+    # Dos fuentes con fotos distintas: se toma la de mayor prioridad y NO es conflicto.
+    cv = merge_first_available(
+        "photo_url",
+        [("wikidata", "a.jpg"), ("thesportsdb", "b.jpg")],
+        priority=("thesportsdb", "wikidata"),
+    )
+    assert cv.value == "b.jpg"
+    assert cv.has_conflict is False
+    assert cv.reported_by == 2
+
+
+def test_consensus_includes_photo_and_info():
+    obs = [
+        PlayerObservation(source="thesportsdb", full_name="Lionel Messi", photo_url="cut.png",
+                          info="Capitán de Argentina"),
+        PlayerObservation(source="wikipedia", full_name="Lionel Messi", photo_url="wiki.jpg"),
+    ]
+    c = build_player_consensus(obs, priority=("thesportsdb", "wikipedia"))
+    assert c.value("photo_url") == "cut.png"   # thesportsdb tiene prioridad
+    assert c.value("info") == "Capitán de Argentina"
+    # la foto no debe ensuciar las discrepancias
+    assert all(cv.field not in ("photo_url", "info") for cv in c.conflicts)
 
 
 def test_normalize_name_strips_accents_and_punctuation():

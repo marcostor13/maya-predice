@@ -15,10 +15,13 @@ from app.models.squad import PlayerStatus, Position, SquadRole
 _POSITION_MAP = {
     "gk": Position.GK, "goalkeeper": Position.GK, "g": Position.GK, "portero": Position.GK,
     "def": Position.DEF, "defender": Position.DEF, "defence": Position.DEF, "d": Position.DEF,
+    "df": Position.DEF,  # abreviatura de Wikipedia
     "back": Position.DEF, "defensa": Position.DEF, "centre-back": Position.DEF,
     "mid": Position.MID, "midfielder": Position.MID, "m": Position.MID, "medio": Position.MID,
+    "mf": Position.MID,  # abreviatura de Wikipedia
     "centrocampista": Position.MID,
     "fwd": Position.FWD, "forward": Position.FWD, "attacker": Position.FWD, "f": Position.FWD,
+    "fw": Position.FWD,  # abreviatura de Wikipedia
     "striker": Position.FWD, "winger": Position.FWD, "delantero": Position.FWD,
 }
 
@@ -78,6 +81,8 @@ class PlayerObservation:
     birth_date: date | None = None
     role: SquadRole = SquadRole.UNKNOWN
     status: PlayerStatus = PlayerStatus.UNKNOWN
+    photo_url: str | None = None  # foto del jugador (la aportan thesportsdb/wikidata/wikipedia)
+    info: str | None = None       # breve biografía/descripción
 
     @property
     def name_key(self) -> str:
@@ -90,6 +95,7 @@ class CoachObservation:
     name: str
     nationality: str | None = None
     status: PlayerStatus = PlayerStatus.AVAILABLE
+    photo_url: str | None = None
 
 
 @dataclass

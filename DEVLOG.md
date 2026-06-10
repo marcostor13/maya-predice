@@ -616,3 +616,43 @@ nivel de club** (lo aproxima el valor de mercado del plantel). Detalle en
 **Pendientes que dejó.** Conectar la fuente externa al ensamble: **API de cuotas**
 (acción #2, el mayor salto) y **valor de mercado / Power Rankings** (acción #4).
 Ambas requieren API + allowlist en Coolify → decisión del usuario.
+
+---
+
+## Entrada 018 — Web scraping de Wikipedia: plantillas, DT, fotos e info
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Enriquecer las plantillas con **fotos** de jugadores, **información**,
+las bajas/lesionados (faltantes) y el **entrenador**, vía web scraping además de las
+APIs.
+
+**Qué se implementó.**
+- **Foto + info en el modelo:** `Player.photo_url`/`Player.info` y `Coach.photo_url`
+  (migración `d2b3c4e5f6a7`); expuestos en `PlayerRead`/`CoachRead`. La cadena
+  observación → consenso → servicio propaga los campos.
+- **Consenso para foto/info:** como cada fuente trae una URL distinta, NO se votan
+  por mayoría: `merge_first_available()` toma la de **mayor prioridad** sin marcar
+  conflicto (no ensucia `squad_discrepancies`). La confianza se sigue midiendo solo
+  con los campos votados.
+- **Scraper de Wikipedia** (`app/data/players/wikipedia.py`, fuente `wikipedia`):
+  API de MediaWiki (sin clave). Parsea las plantillas wiki `{{nat fs player}}`
+  (dorsal, posición, nombre, club), el seleccionador (`|manager=`) y trae la **foto**
+  de cada jugador/DT con `prop=pageimages` en lotes de 50. El parser de wikitexto
+  (`parse_squad_wikitext`) es puro y testeado (maneja wikilinks `[[A|B]]`).
+- **Fotos desde las fuentes que ya las daban:** TheSportsDB (`strCutout`/`strThumb`
+  + biografía) y Wikidata (imagen P18). Antes se ignoraban.
+- **Faltantes (bajas/lesionados):** ya modelados en `PlayerStatus`
+  (injured/suspended/doubtful/out) y consensuados; el frontend los pinta con color.
+- **Frontend:** la vista de equipo muestra el **avatar** de cada jugador (con
+  iniciales de fallback) y la **foto del DT** en la cabecera.
+- **Prioridad de consenso** ampliada: apifootball > sportmonks > thesportsdb >
+  wikipedia > wikidata > fixture.
+
+**Verificación.** ruff limpio; **87 tests** en verde (4 del parser de Wikipedia + 2
+del consenso de fotos); migración válida en modo offline; `npm run build` OK.
+
+**Pendiente / acción del usuario.** En Coolify: añadir `en.wikipedia.org`,
+`commons.wikimedia.org` y `query.wikidata.org` a la allowlist y poner
+`PLAYER_SOURCES=thesportsdb,wikipedia,wikidata` (+ apifootball/sportmonks si hay
+keys). En el sandbox de desarrollo esos hosts no responden (por eso `fixture` sigue
+siendo el default en dev).

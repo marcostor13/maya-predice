@@ -63,6 +63,10 @@ def build_player_providers() -> list[PlayerDataProvider]:
             from app.data.players.wikidata import WikidataProvider
 
             providers.append(WikidataProvider())
+        elif name == "wikipedia":
+            from app.data.players.wikipedia import WikipediaSquadProvider
+
+            providers.append(WikipediaSquadProvider())
         elif name == "fixture":
             from app.data.players.localfixture import LocalFixtureProvider
 
@@ -138,6 +142,8 @@ async def sync_squads(
                         birth_date=consensus.value("birth_date"),
                         role=consensus.value("role"),
                         status=consensus.value("status"),
+                        photo_url=consensus.value("photo_url"),
+                        info=consensus.value("info"),
                         confidence=consensus.confidence,
                         sources_count=consensus.sources_count,
                         source_data=source_data,
@@ -172,6 +178,7 @@ async def sync_squads(
                 existing.name = cc.value("name")
                 existing.nationality = cc.value("nationality")
                 existing.status = cc.value("status")
+                existing.photo_url = cc.value("photo_url")
                 existing.confidence = cc.confidence
                 existing.sources_count = cc.sources_count
                 existing.source_data = {

@@ -78,6 +78,8 @@ export interface Player {
   club?: string;
   role: SquadRole;
   status: PlayerStatus;
+  photo_url?: string;
+  info?: string;
   confidence: number;
   sources_count: number;
 }
@@ -88,6 +90,7 @@ export interface Coach {
   name: string;
   nationality?: string;
   status: PlayerStatus;
+  photo_url?: string;
   confidence: number;
   sources_count: number;
 }

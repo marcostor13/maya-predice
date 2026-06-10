@@ -55,6 +55,9 @@ class TheSportsDBProvider(PlayerDataProvider):
             if not name:
                 continue
             number = p.get("strNumber")
+            # Foto: recorte sin fondo > miniatura > render. Info: biografía corta.
+            photo = p.get("strCutout") or p.get("strThumb") or p.get("strRender") or None
+            description = (p.get("strDescriptionEN") or "").strip()
             out.append(
                 PlayerObservation(
                     source=self.name,
@@ -62,6 +65,8 @@ class TheSportsDBProvider(PlayerDataProvider):
                     position=normalize_position(p.get("strPosition")),
                     shirt_number=int(number) if (number or "").isdigit() else None,
                     club=p.get("strTeam2") or None,
+                    photo_url=photo,
+                    info=(description[:600] or None),
                 )
             )
         return out

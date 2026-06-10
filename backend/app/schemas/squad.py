@@ -17,6 +17,8 @@ class PlayerRead(BaseModel):
     birth_date: date | None = None
     role: SquadRole
     status: PlayerStatus
+    photo_url: str | None = None
+    info: str | None = None
     confidence: float
     sources_count: int
     source_data: dict | None = None
@@ -31,6 +33,7 @@ class CoachRead(BaseModel):
     name: str
     nationality: str | None = None
     status: PlayerStatus
+    photo_url: str | None = None
     confidence: float
     sources_count: int
     source_data: dict | None = None

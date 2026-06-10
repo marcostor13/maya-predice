@@ -23,7 +23,7 @@ from app.data.players.base import (
 from app.models.squad import PlayerStatus, Position, SquadRole
 
 # Prioridad por defecto para desempatar (la primera gana ante empate de votos).
-DEFAULT_PRIORITY = ("apifootball", "thesportsdb", "wikidata", "fixture")
+DEFAULT_PRIORITY = ("apifootball", "sportmonks", "thesportsdb", "wikipedia", "wikidata", "fixture")
 
 
 @dataclass
@@ -71,6 +71,23 @@ def merge_field(
     return ConsensusValue(field, chosen_value, agreement, len(reported), by_source, has_conflict)
 
 
+def merge_first_available(
+    field: str,
+    pairs: list[tuple[str, Any]],
+    priority: tuple[str, ...] = DEFAULT_PRIORITY,
+) -> ConsensusValue:
+    """Para campos que NO se votan por mayoría (foto, info): cada fuente trae un
+    valor distinto, así que se toma el de **mayor prioridad** disponible y no se
+    marca conflicto (no tiene sentido una 'discrepancia' entre dos URLs de foto).
+    """
+    reported = [(s, v) for s, v in pairs if v is not None and v != ""]
+    by_source = {s: _stringify(v) for s, v in reported}
+    if not reported:
+        return ConsensusValue(field, None, 0.0, 0, {}, False)
+    _, value = min(reported, key=lambda sv: _priority_index(sv[0], priority))
+    return ConsensusValue(field, value, 1.0, len(reported), by_source, False)
+
+
 def _stringify(value: Any) -> str:
     if isinstance(value, (Position, PlayerStatus, SquadRole)):
         return value.value
@@ -111,6 +128,8 @@ class CoachConsensus:
 
 
 _PLAYER_FIELDS = ("full_name", "position", "shirt_number", "club", "birth_date", "role", "status")
+# Campos enriquecidos que se toman por prioridad de fuente (no por voto): foto, info.
+_PLAYER_PICK_FIRST = ("photo_url", "info")
 
 
 def build_player_consensus(
@@ -127,8 +146,13 @@ def build_player_consensus(
         pairs = [(o.source, getattr(o, f)) for o in observations]
         fields[f] = merge_field(f, pairs, priority)
 
+    # La confianza se mide solo con los campos votados (no con foto/info).
     reported = [cv for cv in fields.values() if cv.reported_by > 0]
     confidence = sum(cv.agreement for cv in reported) / len(reported) if reported else 0.0
+
+    for f in _PLAYER_PICK_FIRST:
+        pairs = [(o.source, getattr(o, f)) for o in observations]
+        fields[f] = merge_first_available(f, pairs, priority)
 
     full_name = fields["full_name"].value or observations[0].full_name
     return PlayerConsensus(
@@ -141,6 +165,7 @@ def build_player_consensus(
 
 
 _COACH_FIELDS = ("name", "nationality", "status")
+_COACH_PICK_FIRST = ("photo_url",)
 
 
 def build_coach_consensus(
@@ -156,6 +181,9 @@ def build_coach_consensus(
     }
     reported = [cv for cv in fields.values() if cv.reported_by > 0]
     confidence = sum(cv.agreement for cv in reported) / len(reported) if reported else 0.0
+    for f in _COACH_PICK_FIRST:
+        pairs = [(o.source, getattr(o, f)) for o in observations]
+        fields[f] = merge_first_available(f, pairs, priority)
     return CoachConsensus(
         name=fields["name"].value or observations[0].name,
         fields=fields,

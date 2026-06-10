@@ -20,6 +20,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -61,6 +62,7 @@ class Coach(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     nationality: Mapped[str | None] = mapped_column(String(60), nullable=True)
     status: Mapped[PlayerStatus] = mapped_column(Enum(PlayerStatus), default=PlayerStatus.AVAILABLE)
+    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     sources_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -93,6 +95,9 @@ class Player(Base):
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     role: Mapped[SquadRole] = mapped_column(Enum(SquadRole), default=SquadRole.UNKNOWN)
     status: Mapped[PlayerStatus] = mapped_column(Enum(PlayerStatus), default=PlayerStatus.UNKNOWN)
+    # Enriquecimiento (foto + breve biografía/info) provisto por las fuentes que lo dan.
+    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    info: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     sources_count: Mapped[int] = mapped_column(Integer, default=0)

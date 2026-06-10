@@ -23,10 +23,11 @@ SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 SEARCH_ENDPOINT = "https://www.wikidata.org/w/api.php"
 
 _SQUAD_QUERY = """
-SELECT ?playerLabel ?positionLabel WHERE {{
+SELECT ?playerLabel ?positionLabel ?image WHERE {{
   ?statement ps:P54 wd:{team_qid} .
   ?player p:P54 ?statement .
   OPTIONAL {{ ?player wdt:P413 ?position . }}
+  OPTIONAL {{ ?player wdt:P18 ?image . }}
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }} LIMIT 60
 """
@@ -65,6 +66,7 @@ class WikidataProvider(PlayerDataProvider):
                     source=self.name,
                     full_name=name,
                     position=normalize_position(row.get("positionLabel", {}).get("value")),
+                    photo_url=row.get("image", {}).get("value") or None,  # P18 (Commons)
                 )
             )
         return out
