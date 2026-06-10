@@ -23,6 +23,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.app_settings import apply_overrides
 from app.services.jobs import JobInProgress, start_job
 from app.services.notifications import notify_subscribers
 from app.services.recompute import recompute_pipeline
@@ -31,6 +32,16 @@ from app.services.squad_service import build_player_providers, sync_squads
 logger = logging.getLogger("maya.scheduler")
 
 _scheduler: AsyncIOScheduler | None = None
+
+
+async def _refresh_overrides() -> None:
+    """Recarga los overrides de configuración (panel admin) antes de cada job, para
+    que los 2 workers converjan al último valor guardado."""
+    async with AsyncSessionLocal() as db:
+        try:
+            await apply_overrides(db)
+        except Exception:  # noqa: BLE001
+            logger.warning("No se pudieron recargar los overrides de configuración.")
 
 
 async def _sync_squads_job() -> None:
@@ -76,6 +87,9 @@ async def run_hourly_refresh() -> None:
     2) lanza el recálculo forzado (reingesta de resultados + cuotas → reentreno →
        predicciones → simulación). Así el modelo se afina con datos frescos cada hora.
     """
+    await _refresh_overrides()
+    if not settings.hourly_refresh_enabled:
+        return
     logger.info("Aprendizaje continuo (horario)…")
     await _sync_squads_job()
     await _trigger_recompute("hourly", force=True)
@@ -99,6 +113,9 @@ async def run_daily_refresh() -> None:
 
 async def run_live_update() -> None:
     """Recálculo en vivo: solo trabaja si terminaron/cambiaron partidos (force=False)."""
+    await _refresh_overrides()
+    if not settings.enable_live_updates:
+        return
     await _trigger_recompute("live", force=False)
 
 
@@ -148,3 +165,14 @@ def shutdown_scheduler() -> None:
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
         _scheduler = None
+
+
+def reschedule_scheduler() -> None:
+    """Reconstruye el scheduler con la config actual (tras cambiar ajustes en el admin).
+
+    Afecta al worker que atiende la petición; los demás workers recogen los cambios
+    de comportamiento (flags) al inicio de su próximo job (recargan overrides)."""
+    if not settings.enable_scheduler:
+        return
+    shutdown_scheduler()
+    start_scheduler()

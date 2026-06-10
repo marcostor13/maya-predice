@@ -731,3 +731,38 @@ lock es no-op fuera de Postgres); imports del scheduler/CLI correctos.
 wikidata/thesportsdb/odds) y, si se prefiere cron externo, `ENABLE_SCHEDULER=false`
 + programar `python -m app.data.learn` cada hora. Durante el torneo se puede bajar
 `LIVE_POLL_MINUTES` para captar resultados más rápido.
+
+---
+
+## Entrada 021 — Configuración editable desde el panel admin
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Poder cambiar las configuraciones operativas desde el **panel admin**
+(no solo por variables de entorno en Coolify).
+
+**Qué se implementó.**
+- **Overrides en DB** (`app_settings`, migración `f5a6b7c8d9e0`): cada fila pisa el
+  valor de entorno de un ajuste **operativo**. Servicio `app/services/app_settings.py`
+  con un registro `EDITABLE` (clave, tipo, grupo, etiqueta, descripción, min/max,
+  secreto) + `apply_overrides`/`save_overrides`/`effective_config`.
+- **Ajustes editables:** cron horario (on + minutos), actualización en vivo (on +
+  minutos), ensamble de mercado (on + ω + API key de The Odds API), fuentes de
+  plantillas, ajuste por disponibilidad (on + fuerza), iteraciones de simulación,
+  emails a suscriptores, hora del refresco diario. **NO** los hiperparámetros del
+  modelo (ξ/filtro/prior), que siguen blindados.
+- **Aplicación en caliente, multi-worker:** los overrides se aplican sobre el
+  `settings` en memoria al **arrancar** (lifespan) y al **inicio de cada job** del
+  scheduler (`_refresh_overrides`), de modo que los 2 workers Gunicorn convergen.
+  Los jobs horario/vivo además **comprueban su flag** en runtime (on/off inmediato).
+- **Endpoints** `GET/POST /admin/settings` (los secretos no se exponen; un valor
+  vacío = "no cambiar"). Al guardar se reprograma el scheduler del worker.
+- **Frontend:** panel **⚙️ Configuración** en `/admin`, agrupado, con toggles,
+  números y textos; botón Guardar. Secretos como password con placeholder "guardada".
+
+**Verificación.** ruff limpio; **96 tests** en verde (4 nuevos: coerción/clamp,
+ocultado de secretos y roundtrip guardar→aplicar contra SQLite); migración válida
+en modo offline; `npm run build` OK.
+
+**Nota.** Los cambios de **comportamiento** (ensamble, fuentes, ω, on/off de crones)
+aplican en el próximo ciclo; los **intervalos** de los crones aplican del todo tras
+reiniciar el backend (o en el worker que atendió el guardado).

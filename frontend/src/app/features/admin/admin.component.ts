@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -14,6 +14,12 @@ interface Command {
 }
 
 interface Factor { icon: string; nombre: string; desc: string; }
+
+interface SettingItem {
+  key: string; type: 'bool' | 'int' | 'float' | 'str'; group: string;
+  label: string; desc: string; secret: boolean; min: number | null; max: number | null;
+  value: unknown; is_set?: boolean;
+}
 
 // Operaciones avanzadas (la principal es "Actualizar" = recompute).
 const ADVANCED: Command[] = [
@@ -119,6 +125,56 @@ const ADVANCED: Command[] = [
           }
         }
 
+        <!-- CONFIGURACIÓN -->
+        <button class="chip toggle" (click)="toggleCfg()">
+          {{ showCfg() ? '▾' : '▸' }} ⚙️ Configuración
+        </button>
+        @if (showCfg()) {
+          <div class="settings">
+            @for (g of settingGroups(); track g.name) {
+              <div class="sgroup card">
+                <h4>{{ g.name }}</h4>
+                @for (s of g.items; track s.key) {
+                  <div class="srow">
+                    <div class="smeta">
+                      <label [for]="s.key">{{ s.label }}</label>
+                      <p class="muted">{{ s.desc }}</p>
+                    </div>
+                    <div class="sctrl">
+                      @if (s.type === 'bool') {
+                        <button type="button" class="sw" [class.on]="!!edited()[s.key]"
+                                (click)="setVal(s.key, !edited()[s.key])">
+                          <span class="dot"></span>
+                        </button>
+                      } @else if (s.secret) {
+                        <input [id]="s.key" type="password" autocomplete="new-password"
+                               [placeholder]="s.is_set ? '•••••• (guardada)' : 'sin definir'"
+                               [value]="strVal(s.key)" (input)="setVal(s.key, $any($event.target).value)" />
+                      } @else if (s.type === 'int' || s.type === 'float') {
+                        <input [id]="s.key" type="number" [min]="s.min ?? null" [max]="s.max ?? null"
+                               [step]="s.type === 'float' ? 0.05 : 1"
+                               [value]="strVal(s.key)" (input)="setVal(s.key, $any($event.target).value)" />
+                      } @else {
+                        <input [id]="s.key" type="text"
+                               [value]="strVal(s.key)" (input)="setVal(s.key, $any($event.target).value)" />
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+            <div class="sactions">
+              <button class="btn" (click)="saveSettings()" [disabled]="savingCfg()">
+                @if (savingCfg()) { <span class="spinner" style="width:16px;height:16px"></span> Guardando… }
+                @else { 💾 Guardar configuración }
+              </button>
+              @if (cfgMsg()) { <span class="cfgmsg" [class.bad]="cfgErr()">{{ cfgMsg() }}</span> }
+            </div>
+            <p class="muted small">Los cambios de comportamiento (ensamble, fuentes, ω…) aplican en el próximo
+              ciclo; los intervalos de los crones aplican del todo tras reiniciar el backend.</p>
+          </div>
+        }
+
         <!-- AVANZADO -->
         <button class="chip toggle" (click)="showAdv.set(!showAdv())">
           {{ showAdv() ? '▾' : '▸' }} Operaciones avanzadas
@@ -176,6 +232,23 @@ const ADVANCED: Command[] = [
       .factor p { font-size: .85rem; margin: 4px 0 0; }
       .cfg { background: var(--surface); border-radius: 10px; padding: 10px 14px; }
       .toggle { cursor: pointer; display: inline-block; margin: 26px 0 12px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+      .settings { display: grid; gap: 14px; }
+      .sgroup { padding: 16px 18px; }
+      .sgroup h4 { font-family: 'Poppins'; margin-bottom: 10px; color: var(--primary); }
+      .srow { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border); }
+      .srow:first-of-type { border-top: none; }
+      .smeta { flex: 1; }
+      .smeta label { font-weight: 600; }
+      .smeta p { font-size: .8rem; margin-top: 2px; }
+      .sctrl input { width: 180px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+      .sctrl input:focus { border-color: var(--primary); outline: none; }
+      .sw { width: 48px; height: 26px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); position: relative; cursor: pointer; transition: background .2s ease; }
+      .sw .dot { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .2s ease, background .2s ease; }
+      .sw.on { background: rgba(52,211,153,.25); border-color: #34d399; }
+      .sw.on .dot { transform: translateX(22px); background: #34d399; }
+      .sactions { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+      .cfgmsg { font-size: .85rem; color: #34d399; }
+      .cfgmsg.bad { color: var(--danger); }
       .commands { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
       @media (max-width: 760px) { .commands { grid-template-columns: 1fr; } }
       .cmd { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
@@ -208,10 +281,31 @@ export class AdminComponent implements OnDestroy {
   running = signal<Record<string, boolean>>({});
   result = signal<Record<string, { error: boolean; body: unknown }>>({});
 
+  // Configuración editable
+  settings = signal<SettingItem[]>([]);
+  edited = signal<Record<string, unknown>>({});
+  showCfg = signal(false);
+  savingCfg = signal(false);
+  cfgMsg = signal('');
+  cfgErr = signal(false);
+
+  settingGroups = computed(() => {
+    const groups: { name: string; items: SettingItem[] }[] = [];
+    for (const s of this.settings()) {
+      let g = groups.find((x) => x.name === s.group);
+      if (!g) { g = { name: s.group, items: [] }; groups.push(g); }
+      g.items.push(s);
+    }
+    return groups;
+  });
+
   constructor() {
     if (this.api.token()) {
       this.api.check().subscribe({
-        next: () => { this.authed.set(true); this.loadStatus(); this.loadFactors(); this.resumeJob(); },
+        next: () => {
+          this.authed.set(true);
+          this.loadStatus(); this.loadFactors(); this.loadSettings(); this.resumeJob();
+        },
         error: () => this.api.clear(),
       });
     }
@@ -229,6 +323,7 @@ export class AdminComponent implements OnDestroy {
         this.pass = '';
         this.loadStatus();
         this.loadFactors();
+        this.loadSettings();
         this.resumeJob();
       },
       error: (e) => {
@@ -264,6 +359,56 @@ export class AdminComponent implements OnDestroy {
 
   asArray(v: unknown): unknown[] {
     return Array.isArray(v) ? v : [];
+  }
+
+  // --- Configuración editable ---
+  loadSettings(): void {
+    this.api.getSettings().subscribe({
+      next: (r) => {
+        const items = (r['settings'] as SettingItem[]) ?? [];
+        this.settings.set(items);
+        const edited: Record<string, unknown> = {};
+        for (const s of items) edited[s.key] = s.secret ? '' : s.value;
+        this.edited.set(edited);
+      },
+    });
+  }
+  toggleCfg(): void {
+    this.showCfg.set(!this.showCfg());
+    if (this.showCfg() && this.settings().length === 0) this.loadSettings();
+  }
+  strVal(key: string): string {
+    const v = this.edited()[key];
+    return v === null || v === undefined ? '' : String(v);
+  }
+  setVal(key: string, value: unknown): void {
+    this.edited.update((e) => ({ ...e, [key]: value }));
+    this.cfgMsg.set('');
+  }
+  saveSettings(): void {
+    this.savingCfg.set(true);
+    this.cfgMsg.set('');
+    // Secretos vacíos = "no cambiar": no se envían.
+    const payload: Record<string, unknown> = {};
+    const secrets = new Set(this.settings().filter((s) => s.secret).map((s) => s.key));
+    for (const [k, v] of Object.entries(this.edited())) {
+      if (secrets.has(k) && (v === '' || v === null || v === undefined)) continue;
+      payload[k] = v;
+    }
+    this.api.saveSettings(payload).subscribe({
+      next: (r) => {
+        this.settings.set((r['settings'] as SettingItem[]) ?? this.settings());
+        this.savingCfg.set(false);
+        this.cfgErr.set(false);
+        this.cfgMsg.set('✓ Guardado');
+        this.loadFactors();
+      },
+      error: (e) => {
+        this.savingCfg.set(false);
+        this.cfgErr.set(true);
+        this.cfgMsg.set(e?.error?.detail ?? 'Error al guardar');
+      },
+    });
   }
 
   // --- Recompute en segundo plano (job con polling, a prueba de recargas) ---

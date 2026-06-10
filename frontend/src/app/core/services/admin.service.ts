@@ -46,6 +46,12 @@ export class AdminService {
   job(): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>(`${this.base}/admin/job`, this.opts());
   }
+  getSettings(): Observable<Record<string, unknown>> {
+    return this.http.get<Record<string, unknown>>(`${this.base}/admin/settings`, this.opts());
+  }
+  saveSettings(values: Record<string, unknown>): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(`${this.base}/admin/settings`, values, this.opts());
+  }
   run(path: string, method: 'post' | 'get'): Observable<Record<string, unknown>> {
     const url = `${this.base}/admin/${path}`;
     return method === 'post'

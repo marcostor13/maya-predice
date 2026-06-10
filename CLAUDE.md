@@ -205,3 +205,9 @@ cd frontend && npm install && npm start  # http://localhost:4200
   en vivo, manual) pasan por `jobs.start_job` → **uno a la vez**, con un **lock
   consultivo de Postgres** (`pg_advisory_xact_lock`) para que los 2 workers Gunicorn
   no lo dupliquen. Cron externo (si `ENABLE_SCHEDULER=false`): `python -m app.data.learn`.
+- **Configuración editable desde el admin.** Tabla `app_settings` (overrides) +
+  `app/services/app_settings.py` (registro `EDITABLE`). Pisan el entorno para ajustes
+  operativos (crones on/off + minutos, ensamble + ω + odds key, fuentes, disponibilidad,
+  iteraciones, emails, hora diaria). Se aplican sobre `settings` en memoria al arrancar
+  y al inicio de cada job (los 2 workers convergen). Endpoints `GET/POST /admin/settings`;
+  panel ⚙️ Configuración. Los hiperparámetros del modelo NO son editables (blindados).

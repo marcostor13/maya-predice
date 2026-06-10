@@ -1,5 +1,6 @@
 """Punto de entrada de la API FastAPI de maya-predice."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,12 +8,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
 from app.core.scheduler import shutdown_scheduler, start_scheduler
+from app.services.app_settings import apply_overrides
+
+logger = logging.getLogger("maya.main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Arranca el job diario de verificación de datos oficiales.
+    # Aplica los overrides de configuración guardados (panel admin) sobre el entorno.
+    async with AsyncSessionLocal() as db:
+        try:
+            await apply_overrides(db)
+        except Exception:  # noqa: BLE001 — si la tabla aún no existe, se arranca igual
+            logger.warning("No se pudieron aplicar los overrides de configuración al arrancar.")
+    # Arranca los jobs programados (diario, aprendizaje horario, en vivo).
     start_scheduler()
     yield
     shutdown_scheduler()

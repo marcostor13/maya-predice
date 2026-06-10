@@ -117,6 +117,25 @@ async def factors():
     }
 
 
+@router.get("/settings")
+async def get_settings():
+    """Configuración operativa editable (con sus valores efectivos actuales)."""
+    from app.services.app_settings import effective_config
+
+    return {"settings": effective_config()}
+
+
+@router.post("/settings")
+async def update_settings(payload: dict, db: AsyncSession = Depends(get_db)):
+    """Guarda los ajustes recibidos, los aplica y reprograma el scheduler."""
+    from app.core.scheduler import reschedule_scheduler
+    from app.services.app_settings import effective_config, save_overrides
+
+    await save_overrides(db, payload or {})
+    reschedule_scheduler()
+    return {"ok": True, "settings": effective_config()}
+
+
 @router.get("/status")
 async def status(db: AsyncSession = Depends(get_db)):
     """Conteos del estado actual de los datos."""

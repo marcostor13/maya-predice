@@ -1,6 +1,7 @@
 """Modelos ORM. Importados aquí para que Alembic los detecte."""
 
 from app.models.admin_user import AdminUser
+from app.models.app_setting import AppSetting
 from app.models.cache import ApiCache
 from app.models.job import JobRun
 from app.models.match import Match, MatchStage, MatchStatus
@@ -22,6 +23,7 @@ from app.models.tournament import Tournament
 __all__ = [
     "AdminUser",
     "ApiCache",
+    "AppSetting",
     "Coach",
     "DataChange",
     "JobRun",
