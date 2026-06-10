@@ -403,3 +403,33 @@ xG/valor de mercado.
 **Pendientes que dejó.**
 - En producción: keys válidas + allowlist para plantillas reales.
 - xG / valor de mercado vía API de pago (hook listo: proveedor + prior).
+
+---
+
+## Entrada 011 — Sportmonks (plantillas/jugadores) + caché de respuestas en DB
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Integrar Sportmonks (token `SPAPI_TOKEN`) para plantillas/jugadores,
+guardando cada consulta en la base de datos para no pedir dos veces lo mismo.
+
+**Qué se implementó.**
+- **Caché de respuestas** (`models/cache.py` + `data/players/_cache.py`): tabla
+  `api_cache` keyed por hash del endpoint+params (sin token). `cached_get_json`
+  consulta la DB antes de llamar a la API; si existe (y no caducó por
+  `SPORTMONKS_CACHE_TTL_HOURS`, default 24h, <=0 = indefinida) la devuelve sin
+  gastar crédito. Reutilizable por cualquier proveedor.
+- **Proveedor Sportmonks** (`data/players/sportmonks.py`): resuelve cada selección
+  a su team_id (search), pide el squad con `include=player.position`, mapea a
+  `PlayerObservation` (nombre, posición, dorsal, fecha de nacimiento). Auth por
+  header `Authorization`; throttle entre equipos. Toda llamada pasa por la caché.
+- Config `spapi_token` (env **SPAPI_TOKEN**), `sportmonks_base`,
+  `sportmonks_cache_ttl_hours`. Registrado en `build_player_providers` (activar con
+  `PLAYER_SOURCES=sportmonks`). Migración de `api_cache`.
+
+**Verificación (contra PostgreSQL).** 3 llamadas (2 idénticas + 1 distinta) →
+**solo 2 llamadas reales a la API** (la repetida vino de la caché); 2 filas en
+`api_cache`. ruff limpio; 61 tests en verde.
+
+**Pendientes.** Ajustar nombres de campos del JSON real de Sportmonks si difieren
+(implementado de forma defensiva); valor de mercado/xG de Sportmonks si el plan los
+incluye (capturar en `source_data`/columna nueva).

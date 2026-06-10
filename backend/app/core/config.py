@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     apifootball_key: str = ""
     apifootball_host: str = "https://v3.football.api-sports.io"
     thesportsdb_key: str = "3"
+    # Sportmonks (token en la variable SPAPI_TOKEN). Cachea cada consulta en la DB.
+    spapi_token: str = ""
+    sportmonks_base: str = "https://api.sportmonks.com/v3/football"
+    sportmonks_cache_ttl_hours: int = 24  # <=0 = caché indefinida
     squads_fixture_path: str = "app/data/samples/squads_sample.json"
     squads_remote_url: str = ""
 

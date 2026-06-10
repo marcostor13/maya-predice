@@ -45,6 +45,16 @@ def build_player_providers() -> list[PlayerDataProvider]:
             from app.data.players.apifootball import APIFootballProvider
 
             providers.append(APIFootballProvider(settings.apifootball_key, settings.apifootball_host))
+        elif name == "sportmonks" and settings.spapi_token:
+            from app.data.players.sportmonks import SportmonksProvider
+
+            providers.append(
+                SportmonksProvider(
+                    settings.spapi_token,
+                    settings.sportmonks_base,
+                    settings.sportmonks_cache_ttl_hours,
+                )
+            )
         elif name == "thesportsdb":
             from app.data.players.thesportsdb import TheSportsDBProvider
 
