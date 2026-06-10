@@ -5,6 +5,15 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# --- Hiperparámetros del modelo CALIBRADOS (no configurables por entorno) ---
+# Se fijan aquí, hardcodeados, y NO se leen de variables de entorno: así ningún
+# valor viejo en Coolify/.env (p. ej. MODEL_DECAY_XI=0.004) puede degradar la
+# precisión ya validada por RPS walk-forward. Si hay que recalibrar, se cambia
+# AQUÍ (y se revalida con `python -m app.data.backtest`). Ver MODEL_STUDY.md §4.1.
+HISTORY_TEAM_FILTER = "any"  # usa todos los rivales: ratings estables y opponent-adjusted
+MODEL_DECAY_XI = 0.0015  # decaimiento temporal (~vida media ~15 meses); bate la base por RPS
+ELO_PRIOR_WEIGHT = 2.5  # ancla fuerte al Elo (predice mejor que el ranking FIFA)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -66,13 +75,20 @@ class Settings(BaseSettings):
         "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
     )
     history_since_year: int = 2018
-    # any = usa todos los rivales (cada selección ~100 partidos): ratings estables
-    # y opponent-adjusted. 'both' (solo entre las 48) sufre de muestra pequeña.
-    history_team_filter: str = "any"
-    # ξ optimizado por RPS walk-forward (corte 2024): 0.0015 bate la línea base
-    # (RPS 0.213 vs 0.225); 0.004 NO la batía. Ver MODEL_STUDY.md §4.1.
-    model_decay_xi: float = 0.0015  # decaimiento temporal (~vida media ~15 meses)
-    elo_prior_weight: float = 2.5  # ancla fuerte al Elo (predice mejor que el ranking FIFA)
+
+    # Estos tres NO son campos de entorno: son propiedades de solo lectura que
+    # devuelven las constantes calibradas de arriba, blindadas frente a overrides.
+    @property
+    def history_team_filter(self) -> str:
+        return HISTORY_TEAM_FILTER
+
+    @property
+    def model_decay_xi(self) -> float:
+        return MODEL_DECAY_XI
+
+    @property
+    def elo_prior_weight(self) -> float:
+        return ELO_PRIOR_WEIGHT
 
     # --- Ajuste por disponibilidad de jugadores ---
     enable_availability_adjustment: bool = True
