@@ -10,6 +10,7 @@ from app.api.endpoints import (
     subscribers,
     sync,
     teams,
+    venues,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -20,3 +21,4 @@ api_router.include_router(sync.router)
 api_router.include_router(squads.router)
 api_router.include_router(simulate.router)
 api_router.include_router(subscribers.router)
+api_router.include_router(venues.router)

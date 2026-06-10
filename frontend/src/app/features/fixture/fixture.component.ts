@@ -75,7 +75,13 @@ const STAGE_LABEL: Record<MatchStage, string> = {
                       <span class="fl"><app-flag [code]="code(m.away_team_id)" /></span>
                     </div>
                   </div>
-                  <div class="venue muted">📍 {{ m.venue || '—' }}</div>
+                  <div class="venue muted">
+                    @if (m.venue_detail; as v) {
+                      🏟️ {{ v.stadium }} · {{ v.city }}
+                    } @else {
+                      📍 {{ m.venue || '—' }}
+                    }
+                  </div>
                 </div>
               }
             </div>

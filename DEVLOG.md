@@ -372,3 +372,34 @@ consenso (Bélgica baja a ~4º). 61 tests en verde; ruff limpio.
 **Pendientes que dejó.**
 - Siguiente salto de precisión: **xG** y/o **valor de mercado**; blending con
   cuotas para calibrar; localía real de anfitriones; bracket oficial 2026.
+
+---
+
+## Entrada 010 — Sedes completas + hooks de plantillas/valor de mercado
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Cargar info de sedes, plantillas/jugadores y reforzar el modelo con
+xG/valor de mercado.
+
+**Investigación (red = allowlist, solo GitHub).**
+- **xG y valor de mercado de selecciones**: NO disponibles gratis/GitHub; los
+  datasets de ranking FIFA hallados están desactualizados (2020). Requieren APIs
+  de pago (StatsBomb/Sportmonks, Transfermarkt) → producción con keys.
+- **Plantillas**: los 3 proveedores (apifootball/thesportsdb/wikidata) ya existen
+  pero necesitan keys + allowlist en Coolify (la key de API-Football del usuario
+  daba 403). Verificado: no accesibles desde el sandbox.
+
+**Qué se implementó (verificable ahora).**
+- **Catálogo de sedes** `data/venues.py`: las 16 sedes 2026 (estadio, ciudad,
+  país, aforo). Endpoint `GET /api/v1/venues` y `venue_detail` en cada partido.
+  Frontend (fixture) muestra «🏟️ Estadio · Ciudad». Cobertura 16/16 verificada.
+- TheSportsDB: throttling (1.5 s/equipo) + captura de 429 para que la key gratuita
+  no aborte la sincronización de plantillas.
+- `DATA_SOURCES.md`: estado actualizado (sedes ✅) y nota honesta sobre xG/valor.
+
+**Verificación.** Catálogo cubre las 16 sedes del calendario oficial; ruff limpio;
+61 tests en verde; build del frontend OK.
+
+**Pendientes que dejó.**
+- En producción: keys válidas + allowlist para plantillas reales.
+- xG / valor de mercado vía API de pago (hook listo: proveedor + prior).

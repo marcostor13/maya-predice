@@ -20,6 +20,13 @@ class MatchCreate(MatchBase):
     external_ref: str
 
 
+class VenueDetail(BaseModel):
+    stadium: str
+    city: str
+    country: str
+    capacity: int
+
+
 class MatchRead(MatchBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -29,3 +36,4 @@ class MatchRead(MatchBase):
     status: MatchStatus
     home_goals: int | None = None
     away_goals: int | None = None
+    venue_detail: VenueDetail | None = None

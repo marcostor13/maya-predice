@@ -18,6 +18,13 @@ export type MatchStage =
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
 
+export interface VenueDetail {
+  stadium: string;
+  city: string;
+  country: string;
+  capacity: number;
+}
+
 export interface Match {
   id: number;
   tournament_id: number;
@@ -30,6 +37,7 @@ export interface Match {
   group?: string;
   matchday?: number;
   venue?: string;
+  venue_detail?: VenueDetail;
   kickoff?: string;
   status: MatchStatus;
   home_goals?: number;

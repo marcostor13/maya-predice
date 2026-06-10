@@ -10,6 +10,8 @@ Docs: https://www.thesportsdb.com/free_sports_api
 
 from __future__ import annotations
 
+import asyncio
+
 from app.data.players._http import get_json
 from app.data.players.base import (
     PlayerDataProvider,
@@ -27,9 +29,10 @@ TEAM_QUERY_OVERRIDES = {"USA": "United States", "South Korea": "South Korea"}
 class TheSportsDBProvider(PlayerDataProvider):
     name = "thesportsdb"
 
-    def __init__(self, api_key: str = "3", base: str | None = None):
+    def __init__(self, api_key: str = "3", base: str | None = None, throttle: float = 1.5):
         self.base = (base or "https://www.thesportsdb.com").rstrip("/")
         self.api_key = api_key
+        self.throttle = throttle  # segundos entre equipos (la key gratuita es muy limitada)
 
     async def _team_id(self, team_name: str) -> str | None:
         query = TEAM_QUERY_OVERRIDES.get(team_name, team_name)
@@ -66,12 +69,17 @@ class TheSportsDBProvider(PlayerDataProvider):
     async def fetch_all(self) -> list[SquadObservation]:
         squads: list[SquadObservation] = []
         for team_name, (code, _conf) in TEAMS.items():
-            team_id = await self._team_id(team_name)
-            if not team_id:
-                continue
-            players = await self._players(team_id, code)
+            try:
+                team_id = await self._team_id(team_name)
+                if not team_id:
+                    continue
+                players = await self._players(team_id, code)
+            except RuntimeError:
+                continue  # rate limit u otro fallo puntual: salta este equipo
             if players:
                 squads.append(
                     SquadObservation(source=self.name, team_code=code, coach=None, players=players)
                 )
+            # La key gratuita ("3") es muy limitada: pausa para no disparar 429.
+            await asyncio.sleep(self.throttle)
         return squads

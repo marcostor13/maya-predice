@@ -41,13 +41,20 @@ precisión vendría de **xG** y/o **valor de mercado**.
 | Plantillas, suplentes, DT, estado | API-Football + TheSportsDB + Wikidata (consenso) | 🟡 | Disponibilidad de jugadores → ajuste de fuerza. |
 | **Histórico internacional (49k partidos)** | martj42/international_results | 🟢 | **Entrena el modelo** (ataque/defensa, localía, rho). |
 | **Elo internacional (prior)** | calculado del histórico (`prediction/elo.py`) | 🟢 | Prior de fuerza; regulariza equipos con pocos partidos. |
+| **Importancia del partido** | columna `tournament` del histórico | 🟢 | Pondera amistoso < clasificatorio < fase final. |
+| **Sedes (16 estadios)** | catálogo propio (`data/venues.py`) | 🟢 | Estadio, ciudad, país y aforo por partido (`/venues`, `venue_detail`). |
 
 ---
 
 ## Recomendado a continuación (orden de impacto/esfuerzo)
 
-> El **Elo** ya está integrado (calculado del histórico) como prior. El ranking
-> FIFA oficial como segunda señal queda de baja prioridad.
+> El **Elo** y la **importancia del partido** ya están integrados. El ranking FIFA
+> oficial como segunda señal queda de baja prioridad (Elo es más predictivo).
+>
+> **Nota de disponibilidad:** xG y valor de mercado de **selecciones** no están en
+> fuentes gratuitas/GitHub; requieren **APIs de pago** (StatsBomb/Sportmonks para
+> xG; Transfermarkt para valor de mercado) o scraping. Se integran en producción
+> cuando haya keys; el hook (proveedor + prior) es directo de añadir.
 
 ### 1. xG (expected goals) y estadísticas de tiro — calidad, no solo resultado 🟡
 **Por qué.** El marcador tiene mucho ruido; el **xG mide la calidad de las
