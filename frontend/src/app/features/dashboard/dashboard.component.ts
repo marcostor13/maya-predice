@@ -5,14 +5,14 @@ import { forkJoin } from 'rxjs';
 
 import { ApiService } from '../../core/services/api.service';
 import { Match, Prediction, Team, TeamSimulation } from '../../core/models';
-import { flag } from '../../core/util/flags';
+import { FlagComponent } from '../../shared/flag/flag.component';
 import { fadeIn, listStagger } from '../../core/util/animations';
 import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, SubscribeComponent],
+  imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent],
   animations: [fadeIn, listStagger],
   template: `
     <!-- HERO -->
@@ -62,7 +62,7 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
             @for (t of contenders(); track t.team_code; let i = $index) {
               <a class="contender card" [routerLink]="['/equipos', t.team_code]">
                 <div class="rank">#{{ i + 1 }}</div>
-                <div class="flag">{{ flag(t.team_code) }}</div>
+                <div class="flag"><app-flag [code]="t.team_code" /></div>
                 <div class="info">
                   <div class="tname">{{ t.team_name }}</div>
                   <div class="prob-track"><div class="prob-fill" [style.width.%]="t.champion_prob * 100"></div></div>
@@ -93,7 +93,7 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
             @for (m of upcoming(); track m.id) {
               <div class="match card">
                 <div class="side">
-                  <span class="flag">{{ flag(teamCode(m.home_team_id)) }}</span>
+                  <span class="flag"><app-flag [code]="teamCode(m.home_team_id)" /></span>
                   <span class="code">{{ teamCode(m.home_team_id) || m.home_placeholder }}</span>
                 </div>
                 <div class="center">
@@ -113,7 +113,7 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
                 </div>
                 <div class="side right">
                   <span class="code">{{ teamCode(m.away_team_id) || m.away_placeholder }}</span>
-                  <span class="flag">{{ flag(teamCode(m.away_team_id)) }}</span>
+                  <span class="flag"><app-flag [code]="teamCode(m.away_team_id)" /></span>
                 </div>
               </div>
             }
@@ -188,7 +188,6 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
 })
 export class DashboardComponent {
   private api = inject(ApiService);
-  flag = flag;
 
   teams = signal<Team[]>([]);
   matches = signal<Match[]>([]);

@@ -4,13 +4,13 @@ import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
 import { Team } from '../../core/models';
-import { flag } from '../../core/util/flags';
+import { FlagComponent } from '../../shared/flag/flag.component';
 import { listStagger } from '../../core/util/animations';
 
 @Component({
   selector: 'app-teams',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FlagComponent],
   animations: [listStagger],
   template: `
     <div class="container page">
@@ -28,7 +28,7 @@ import { listStagger } from '../../core/util/animations';
             <div class="grid" @listStagger>
               @for (t of byGroup()[g]; track t.code) {
                 <a class="team card" [routerLink]="['/equipos', t.code]">
-                  <span class="fl">{{ flag(t.code) }}</span>
+                  <span class="fl"><app-flag [code]="t.code" /></span>
                   <span class="meta">
                     <span class="nm">{{ t.name }}</span>
                     <span class="conf muted">{{ t.confederation }}</span>
@@ -62,7 +62,6 @@ import { listStagger } from '../../core/util/animations';
 })
 export class TeamsComponent {
   private api = inject(ApiService);
-  flag = flag;
   loading = signal(true);
   teams = signal<Team[]>([]);
   skeletons = Array.from({ length: 12 }, (_, i) => i);

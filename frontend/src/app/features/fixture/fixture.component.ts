@@ -4,7 +4,7 @@ import { forkJoin } from 'rxjs';
 
 import { ApiService } from '../../core/services/api.service';
 import { Match, MatchStage, Prediction, Team } from '../../core/models';
-import { flag } from '../../core/util/flags';
+import { FlagComponent } from '../../shared/flag/flag.component';
 import { listStagger } from '../../core/util/animations';
 
 const STAGE_LABEL: Record<MatchStage, string> = {
@@ -20,7 +20,7 @@ const STAGE_LABEL: Record<MatchStage, string> = {
 @Component({
   selector: 'app-fixture',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FlagComponent],
   animations: [listStagger],
   template: `
     <div class="container page">
@@ -49,7 +49,7 @@ const STAGE_LABEL: Record<MatchStage, string> = {
                   </div>
                   <div class="teams">
                     <div class="t">
-                      <span class="fl">{{ flag(code(m.home_team_id)) }}</span>
+                      <span class="fl"><app-flag [code]="code(m.home_team_id)" /></span>
                       <span class="nm">{{ name(m.home_team_id) || m.home_placeholder }}</span>
                     </div>
                     <div class="result">
@@ -72,7 +72,7 @@ const STAGE_LABEL: Record<MatchStage, string> = {
                     </div>
                     <div class="t right">
                       <span class="nm">{{ name(m.away_team_id) || m.away_placeholder }}</span>
-                      <span class="fl">{{ flag(code(m.away_team_id)) }}</span>
+                      <span class="fl"><app-flag [code]="code(m.away_team_id)" /></span>
                     </div>
                   </div>
                   <div class="venue muted">📍 {{ m.venue || '—' }}</div>
@@ -125,7 +125,6 @@ const STAGE_LABEL: Record<MatchStage, string> = {
 })
 export class FixtureComponent {
   private api = inject(ApiService);
-  flag = flag;
   stages = (Object.keys(STAGE_LABEL) as MatchStage[]).map((key) => ({ key, label: STAGE_LABEL[key] }));
 
   teams = signal<Team[]>([]);

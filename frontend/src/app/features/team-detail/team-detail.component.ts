@@ -4,7 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
 import { Player, Position, Squad } from '../../core/models';
-import { flag } from '../../core/util/flags';
+import { FlagComponent } from '../../shared/flag/flag.component';
 import { fadeIn, listStagger } from '../../core/util/animations';
 
 const POS_LABEL: Record<Position, string> = {
@@ -22,7 +22,7 @@ const STATUS: Record<string, { t: string; c: string }> = {
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FlagComponent],
   animations: [fadeIn, listStagger],
   template: `
     <div class="container page">
@@ -34,7 +34,7 @@ const STATUS: Record<string, { t: string; c: string }> = {
       } @else if (squad()) {
         @if (squad(); as s) {
         <header class="hero card" @fadeIn>
-          <div class="fl floaty">{{ flag(s.team_code) }}</div>
+          <div class="fl floaty"><app-flag [code]="s.team_code" /></div>
           <div>
             <h1>{{ s.team_name }}</h1>
             <div class="chips">
@@ -104,7 +104,6 @@ const STATUS: Record<string, { t: string; c: string }> = {
 export class TeamDetailComponent {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
-  flag = flag;
 
   squad = signal<Squad | null>(null);
   loading = signal(true);

@@ -4,13 +4,13 @@ import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
 import { Simulation, TeamSimulation } from '../../core/models';
-import { flag } from '../../core/util/flags';
+import { FlagComponent } from '../../shared/flag/flag.component';
 import { listStagger } from '../../core/util/animations';
 
 @Component({
   selector: 'app-simulation',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FlagComponent],
   animations: [listStagger],
   template: `
     <div class="container page">
@@ -38,7 +38,7 @@ import { listStagger } from '../../core/util/animations';
           @for (t of top3(); track t.team_code; let i = $index) {
             <a class="pod card" [class]="'p' + (i+1)" [routerLink]="['/equipos', t.team_code]">
               <div class="medal">{{ ['🥇','🥈','🥉'][i] }}</div>
-              <div class="fl floaty">{{ flag(t.team_code) }}</div>
+              <div class="fl floaty"><app-flag [code]="t.team_code" /></div>
               <div class="nm">{{ t.team_name }}</div>
               <div class="big grad">{{ (t.champion_prob * 100).toFixed(1) }}%</div>
               <div class="muted lbl">campeón</div>
@@ -56,7 +56,7 @@ import { listStagger } from '../../core/util/animations';
             @for (t of sim()!.teams; track t.team_code; let i = $index) {
               <a class="trow" [routerLink]="['/equipos', t.team_code]">
                 <span class="rk">{{ i + 1 }}</span>
-                <span class="tm"><span class="fl">{{ flag(t.team_code) }}</span> {{ t.team_name }}</span>
+                <span class="tm"><span class="fl"><app-flag [code]="t.team_code" /></span> {{ t.team_name }}</span>
                 <span class="r">{{ pct(t.advance_prob) }}</span>
                 <span class="r">{{ pct(t.semi_prob) }}</span>
                 <span class="r">{{ pct(t.final_prob) }}</span>
@@ -119,7 +119,6 @@ import { listStagger } from '../../core/util/animations';
 })
 export class SimulationComponent {
   private api = inject(ApiService);
-  flag = flag;
   sim = signal<Simulation | null>(null);
   running = signal(false);
   loading = signal(true);
