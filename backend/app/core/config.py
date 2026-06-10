@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     env: str = "development"
     model_version: str = "dixon-coles-v1"
+    # Token del panel de administración (vacío = panel deshabilitado).
+    admin_token: str = ""
 
     @field_validator("database_url")
     @classmethod

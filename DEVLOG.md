@@ -433,3 +433,29 @@ guardando cada consulta en la base de datos para no pedir dos veces lo mismo.
 **Pendientes.** Ajustar nombres de campos del JSON real de Sportmonks si difieren
 (implementado de forma defensiva); valor de mercado/xG de Sportmonks si el plan los
 incluye (capturar en `source_data`/columna nueva).
+
+---
+
+## Entrada 012 — Panel de administración (frontend) con token
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Una vista de administrador para ejecutar todas las operaciones con
+botones y una descripción de cada una.
+
+**Qué se implementó.**
+- **Backend** `api/endpoints/admin.py` protegido por `ADMIN_TOKEN` (cabecera
+  `X-Admin-Token`; 503 si no se configura, 401 si el token es inválido):
+  `/admin/check`, `/admin/status` (conteos), y operaciones `/admin/{bootstrap,
+  recompute, sync, train, simulate, squads, notify}` (POST) y `/admin/backtest`
+  (GET). Reusan los servicios existentes.
+- **Frontend** `/admin`: login con el token (guardado en localStorage), panel de
+  estado (equipos, partidos, predicciones, suscriptores, filas de caché, última
+  simulación) y tarjetas con **botón + descripción** por comando; muestra el
+  resultado/errores. Enlace discreto «Admin» en el footer.
+- Config `admin_token`; `.env.example`.
+
+**Verificación.** Guard 503/401/ok correcto; ruff limpio; 61 tests en verde; build
+del frontend OK.
+
+**Pendientes.** Operaciones largas (train/recompute/simulate) corren síncronas con
+`--timeout 180`; si crecieran, pasarlas a tareas en segundo plano con polling.

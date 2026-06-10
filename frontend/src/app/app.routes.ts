@@ -26,5 +26,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/simulation/simulation.component').then((m) => m.SimulationComponent),
   },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./features/admin/admin.component').then((m) => m.AdminComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

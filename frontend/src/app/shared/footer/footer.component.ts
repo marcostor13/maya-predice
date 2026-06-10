@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
+  imports: [RouterLink],
   template: `
     <footer class="footer">
       <div class="container">
@@ -33,7 +35,8 @@ import { Component } from '@angular/core';
           </div>
         </div>
         <div class="copy muted small">
-          © {{ year }} maya-predice · Hecho con ⚽ y estadística.
+          © {{ year }} maya-predice · Hecho con ⚽ y estadística. ·
+          <a routerLink="/admin" class="admin-link">Admin</a>
         </div>
       </div>
     </footer>
@@ -60,6 +63,7 @@ import { Component } from '@angular/core';
       .socials a:hover { transform: translateY(-3px); background: var(--surface-2); }
       .handles { display: flex; flex-direction: column; gap: 2px; }
       .copy { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); }
+      .admin-link { color: var(--muted); }
       @media (max-width: 620px) { .author { text-align: left; } .socials { justify-content: flex-start; } .handles { align-items: flex-start; } }
     `,
   ],
