@@ -2,6 +2,7 @@
 
 from app.models.admin_user import AdminUser
 from app.models.cache import ApiCache
+from app.models.job import JobRun
 from app.models.match import Match, MatchStage, MatchStatus
 from app.models.prediction import Prediction
 from app.models.simulation import SimulationResult, SimulationRun
@@ -23,6 +24,7 @@ __all__ = [
     "ApiCache",
     "Coach",
     "DataChange",
+    "JobRun",
     "Match",
     "MatchStage",
     "MatchStatus",

@@ -43,6 +43,9 @@ export class AdminService {
   status(): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>(`${this.base}/admin/status`, this.opts());
   }
+  job(): Observable<Record<string, unknown>> {
+    return this.http.get<Record<string, unknown>>(`${this.base}/admin/job`, this.opts());
+  }
   run(path: string, method: 'post' | 'get'): Observable<Record<string, unknown>> {
     const url = `${this.base}/admin/${path}`;
     return method === 'post'

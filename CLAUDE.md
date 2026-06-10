@@ -175,3 +175,13 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - **PostgreSQL: palabras reservadas.** `position` es reservada → se mapea a
   `player_position` y su enum a `position_enum` (SQLAlchemy no las entrecomilla).
   Cuidado al nombrar columnas/enums nuevos.
+- **Hiperparámetros del modelo hardcodeados.** `history_team_filter` (any),
+  `model_decay_xi` (0.0015) y `elo_prior_weight` (2.5) NO se leen del entorno: son
+  constantes + propiedades de solo lectura en `config.py` (valores validados por
+  RPS, ver `MODEL_STUDY.md`). Para recalibrar se cambian ahí y se revalida con
+  `python -m app.data.backtest`. Ya no sirve ponerlos como variable en Coolify.
+- **Recompute = job en segundo plano.** `POST /admin/recompute` lanza un `JobRun`
+  (tabla `job_runs`) y responde al instante; el panel hace polling a `GET
+  /admin/job`. El estado va en DB (no en memoria) porque producción corre 2 workers
+  Gunicorn. El job corre con su **propia sesión** (`app/services/jobs.py`); un job a
+  la vez; los obsoletos (>30 min) no bloquean.

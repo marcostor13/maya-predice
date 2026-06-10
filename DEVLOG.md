@@ -551,3 +551,37 @@ verde (incluidos los 4 tests del RPS).
 
 **Pendientes que dejó.** Acciones #2–#5 de la estrategia (ensamble con cuotas,
 calibración, valor de mercado, xG) cuando haya APIs; bracket oficial 2026.
+
+---
+
+## Entrada 016 — Hiperparámetros hardcodeados + recompute en segundo plano
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** (1) Que los hiperparámetros calibrados no los degrade ningún valor
+viejo del entorno; (2) que el botón «Actualizar predicciones» no bloquee la página
+ni se rompa al recargar.
+
+**Qué se implementó.**
+- **Hiperparámetros calibrados hardcodeados.** `history_team_filter` (any),
+  `model_decay_xi` (0.0015) y `elo_prior_weight` (2.5) dejan de ser campos de
+  entorno y pasan a **constantes + propiedades de solo lectura** en `config.py`:
+  aunque Coolify/.env traiga `MODEL_DECAY_XI=0.004`, se ignora. Para recalibrar se
+  cambia en `config.py` y se revalida con `python -m app.data.backtest`.
+- **Recompute en segundo plano (a prueba de recargas).** `POST /admin/recompute`
+  ya no corre síncrono (reentreno + 5000 simulaciones colgaban la petición y un
+  refresco la cortaba, con riesgo de timeout del proxy). Ahora crea un **`JobRun`**
+  y lanza la tarea con su **propia sesión de DB**, respondiendo al instante. El
+  panel consulta `GET /admin/job` por polling (cada 3 s). Como producción corre
+  **2 workers Gunicorn**, el estado vive en la **DB** (tabla `job_runs`), no en
+  memoria, para que cualquier worker lo lea. Migración `c1a2b3d4e5f6`.
+  - `app/services/jobs.py`: un job a la vez (bloqueo por `JobInProgress`), detección
+    de jobs obsoletos (>30 min = worker caído, no bloquea), registro de done/error.
+  - Frontend: el botón lanza el job y hace polling; **si recargas o cierras**, al
+    volver el panel se reengancha al job en curso (`resumeJob`) y muestra un aviso
+    «puedes recargar o cerrar, seguirá corriendo en el servidor».
+
+**Verificación.** ruff limpio; **74 tests** en verde (incl. 3 nuevos del job runner
+contra SQLite en memoria, con `importorskip` para no romper CI); migración válida
+en modo offline (`alembic upgrade --sql`); `npm run build` OK.
+
+**Pendientes que dejó.** Igual que la 015 (acciones #2–#5 de la estrategia).

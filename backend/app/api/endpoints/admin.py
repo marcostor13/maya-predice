@@ -146,9 +146,32 @@ async def admin_sync(db: AsyncSession = Depends(get_db)):
 
 @router.post("/recompute")
 async def admin_recompute(db: AsyncSession = Depends(get_db)):
+    """Lanza el recálculo completo en **segundo plano** y responde al instante.
+
+    El trabajo es pesado (reentreno + 5000 simulaciones); correrlo síncrono haría
+    que la petición se quedara colgada y un refresco de la página la cortara. En su
+    lugar se crea un `JobRun` y el panel consulta el estado con `GET /admin/job`.
+    """
+    from app.services.jobs import JobInProgress, job_to_dict, start_job
     from app.services.recompute import recompute_pipeline
 
-    return await recompute_pipeline(db, trigger="admin", force=True)
+    async def work(session):
+        return await recompute_pipeline(session, trigger="admin", force=True)
+
+    try:
+        job = await start_job(db, "recompute", work)
+    except JobInProgress as exc:
+        # 409: ya hay uno en curso; el panel se engancha a su estado.
+        return {"ok": True, "started": False, "job": job_to_dict(exc.job)}
+    return {"ok": True, "started": True, "job": job_to_dict(job)}
+
+
+@router.get("/job")
+async def admin_job(db: AsyncSession = Depends(get_db)):
+    """Estado del último recálculo (para el polling del panel): idle/running/done/error."""
+    from app.services.jobs import job_to_dict, latest_job
+
+    return job_to_dict(await latest_job(db, name="recompute"))
 
 
 @router.post("/train")

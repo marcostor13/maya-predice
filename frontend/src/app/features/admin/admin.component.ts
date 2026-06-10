@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -83,10 +83,17 @@ const ADVANCED: Command[] = [
               más preciso conforme llegan resultados reales.
             </p>
           </div>
-          <button class="btn big" (click)="run(primary)" [disabled]="running()['recompute']">
+          <button class="btn big" (click)="recompute()" [disabled]="running()['recompute']">
             @if (running()['recompute']) { <span class="spinner" style="width:18px;height:18px"></span> Actualizando… }
             @else { Actualizar ahora }
           </button>
+          @if (running()['recompute']) {
+            <div class="job-note">
+              ⏳ Recálculo en curso{{ jobStarted() ? ' desde ' + jobStarted() : '' }}.
+              Tarda 1–2 min. <b>Puedes recargar la página o cerrarla</b>: seguirá
+              corriendo en el servidor y al volver verás el resultado.
+            </div>
+          }
           @if (result()['recompute']; as r) {
             <div class="res" [class.bad]="r.error"><b>{{ r.error ? '✗ Error' : '✓ Hecho' }}</b><pre>{{ r.body | json }}</pre></div>
           }
@@ -159,6 +166,8 @@ const ADVANCED: Command[] = [
       .primary h2 { font-size: 1.4rem; }
       .primary .p-text { margin-bottom: 16px; }
       .btn.big { font-size: 1.05rem; padding: 14px 28px; }
+      .job-note { margin-top: 14px; padding: 12px 14px; border-radius: 10px; font-size: .88rem;
+                  background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.35); color: var(--text); }
       .sec { margin: 30px 0 12px; }
       .factors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
       @media (max-width: 760px) { .factors { grid-template-columns: 1fr; } }
@@ -180,10 +189,11 @@ const ADVANCED: Command[] = [
     `,
   ],
 })
-export class AdminComponent {
+export class AdminComponent implements OnDestroy {
   private api = inject(AdminService);
   advanced = ADVANCED;
-  primary: Command = { key: 'recompute', method: 'post', icon: '🔄', title: 'Actualizar', desc: '' };
+  private pollHandle: ReturnType<typeof setTimeout> | null = null;
+  jobInfo = signal<Record<string, unknown> | null>(null);
 
   user = '';
   pass = '';
@@ -201,7 +211,7 @@ export class AdminComponent {
   constructor() {
     if (this.api.token()) {
       this.api.check().subscribe({
-        next: () => { this.authed.set(true); this.loadStatus(); this.loadFactors(); },
+        next: () => { this.authed.set(true); this.loadStatus(); this.loadFactors(); this.resumeJob(); },
         error: () => this.api.clear(),
       });
     }
@@ -219,6 +229,7 @@ export class AdminComponent {
         this.pass = '';
         this.loadStatus();
         this.loadFactors();
+        this.resumeJob();
       },
       error: (e) => {
         this.checking.set(false);
@@ -228,10 +239,15 @@ export class AdminComponent {
   }
 
   logout(): void {
+    this.stopPolling();
     this.api.clear();
     this.authed.set(false);
     this.user = '';
     this.pass = '';
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
   }
 
   loadStatus(): void {
@@ -248,6 +264,62 @@ export class AdminComponent {
 
   asArray(v: unknown): unknown[] {
     return Array.isArray(v) ? v : [];
+  }
+
+  // --- Recompute en segundo plano (job con polling, a prueba de recargas) ---
+  jobStarted(): string {
+    const iso = this.jobInfo()?.['started_at'] as string | undefined;
+    return iso ? new Date(iso).toLocaleTimeString() : '';
+  }
+
+  recompute(): void {
+    this.running.update((r) => ({ ...r, recompute: true }));
+    this.result.update((r) => { const c = { ...r }; delete c['recompute']; return c; });
+    this.api.run('recompute', 'post').subscribe({
+      next: () => this.pollJob(),
+      error: (e) => {
+        // 409 u otro: si ya hay uno en curso, igual nos enganchamos al polling.
+        if (e?.status === 409) { this.pollJob(); return; }
+        this.result.update((r) => ({ ...r, recompute: { error: true, body: e?.error?.detail ?? 'Error' } }));
+        this.running.update((r) => ({ ...r, recompute: false }));
+      },
+    });
+  }
+
+  // Al cargar/loguear: si hay un recálculo corriendo, reengancha el polling.
+  private resumeJob(): void {
+    this.api.job().subscribe({
+      next: (j) => {
+        this.jobInfo.set(j['status'] === 'idle' ? null : j);
+        if (j['status'] === 'running') {
+          this.running.update((r) => ({ ...r, recompute: true }));
+          this.pollJob();
+        }
+      },
+    });
+  }
+
+  private pollJob(): void {
+    this.stopPolling();
+    this.api.job().subscribe({
+      next: (j) => {
+        this.jobInfo.set(j['status'] === 'idle' ? null : j);
+        if (j['status'] === 'running') {
+          this.running.update((r) => ({ ...r, recompute: true }));
+          this.pollHandle = setTimeout(() => this.pollJob(), 3000);
+        } else {
+          const error = j['status'] === 'error';
+          this.result.update((r) => ({ ...r, recompute: { error, body: error ? j['error'] : j['result'] } }));
+          this.running.update((r) => ({ ...r, recompute: false }));
+          this.loadStatus();
+        }
+      },
+      error: () => this.running.update((r) => ({ ...r, recompute: false })),
+    });
+  }
+
+  private stopPolling(): void {
+    if (this.pollHandle) { clearTimeout(this.pollHandle); this.pollHandle = null; }
   }
 
   run(c: Command): void {
