@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.data.history import ResultsHistoryProvider
 from app.services.prediction.dixon_coles import DixonColesModel, MatchResult
 from app.services.prediction.elo import compute_elo, elo_to_priors
-from app.services.prediction.metrics import accuracy, brier_score, log_loss
+from app.services.prediction.metrics import accuracy, brier_score, log_loss, rps
 
 logger = logging.getLogger("maya.backtest")
 
@@ -49,9 +49,11 @@ class BacktestResult:
     cutoff: str
     train_matches: int
     test_matches: int
+    rps: float
     log_loss: float
     brier: float
     accuracy: float
+    baseline_rps: float
     baseline_log_loss: float
     baseline_brier: float
     baseline_accuracy: float
@@ -83,9 +85,11 @@ def evaluate(
         cutoff="",
         train_matches=len(train),
         test_matches=len(probs),
+        rps=rps(probs, outcomes),
         log_loss=log_loss(probs, outcomes),
         brier=brier_score(probs, outcomes),
         accuracy=accuracy(probs, outcomes),
+        baseline_rps=rps(base_probs, outcomes),
         baseline_log_loss=log_loss(base_probs, outcomes),
         baseline_brier=brier_score(base_probs, outcomes),
         baseline_accuracy=accuracy(base_probs, outcomes),
@@ -106,11 +110,11 @@ async def run_backtest(cutoff: date | None = None) -> BacktestResult:
     )
     result.cutoff = cutoff.isoformat()
     logger.info(
-        "Backtest %s: log-loss %.3f (base %.3f), Brier %.3f, acc %.3f en %s partidos.",
+        "Backtest %s: RPS %.4f (base %.4f), log-loss %.3f, acc %.3f en %s partidos.",
         result.cutoff,
+        result.rps,
+        result.baseline_rps,
         result.log_loss,
-        result.baseline_log_loss,
-        result.brier,
         result.accuracy,
         result.test_matches,
     )

@@ -514,4 +514,40 @@ verde; build del frontend OK.
 
 **Pendiente / acción del usuario.** Quitar de Coolify las variables que sobrescriben
 los nuevos defaults (`HISTORY_TEAM_FILTER`, `MODEL_DECAY_XI`, `ELO_PRIOR_WEIGHT`)
-para que apliquen los valores calibrados (any / 0.004 / 2.5).
+para que apliquen los valores calibrados (any / 0.0015 / 2.5).
+
+---
+
+## Entrada 015 — Estudio del modelo, métrica RPS y ξ optimizado por RPS
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Responder «cómo debe ser un modelo predictivo, qué hacen otros
+modelos similares y qué estrategia matemática seguir para más precisión», y dejar
+el primer paso medible implementado.
+
+**Qué se implementó.**
+- **`MODEL_STUDY.md`** — estudio completo: (1) principios de un buen modelo
+  (calibración > accuracy, *proper scoring rules*/RPS, conciencia temporal, ajuste
+  por rival, regularización/shrinkage, parsimonia, walk-forward); (2) comparación
+  de modelos de referencia (Elo, Maher/Poisson, Dixon-Coles, 538 SPI, bayesiano
+  jerárquico, ML, cuotas de mercado) y qué tomamos de cada uno; (3) análisis de lo
+  que ya tenemos y brechas; (4) **estrategia priorizada** (RPS → calibración →
+  optimizar hiperparámetros → ensamble con mercado → valor de mercado → xG →
+  contexto → bracket real); (5) **formulación matemática** (MAP penalizado con
+  verosimilitud ponderada, covariables, ensamble convexo con el mercado,
+  *temperature scaling*, fórmula del RPS).
+- **Métrica RPS** (`prediction/metrics.py`) — *Ranked Probability Score*, la
+  estándar en fútbol (ordinal: penaliza más equivocarse «lejos»). El backtest
+  (`prediction/backtest.py`, CLI `app.data.backtest`) ahora reporta RPS del modelo
+  vs línea base y declara si la **supera**. 4 tests nuevos del RPS.
+- **ξ optimizado por RPS** — barrido walk-forward (corte 2024, 304 partidos de
+  test): `ξ=0.0015` bate la base (RPS 0.213 vs 0.225); `ξ=0.004` (lo que había)
+  **no** la batía (0.227). Se baja el default `model_decay_xi` 0.004 → **0.0015**.
+  El peso del prior apenas mueve el RPS → se mantiene en 2.5. Ver `MODEL_STUDY.md`
+  §4.1.
+
+**Verificación.** Barrido RPS reproducible (tabla en §4.1); ruff limpio; pytest en
+verde (incluidos los 4 tests del RPS).
+
+**Pendientes que dejó.** Acciones #2–#5 de la estrategia (ensamble con cuotas,
+calibración, valor de mercado, xG) cuando haya APIs; bracket oficial 2026.

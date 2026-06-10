@@ -69,7 +69,9 @@ class Settings(BaseSettings):
     # any = usa todos los rivales (cada selección ~100 partidos): ratings estables
     # y opponent-adjusted. 'both' (solo entre las 48) sufre de muestra pequeña.
     history_team_filter: str = "any"
-    model_decay_xi: float = 0.004  # más peso a la forma reciente (~vida media 6 meses)
+    # ξ optimizado por RPS walk-forward (corte 2024): 0.0015 bate la línea base
+    # (RPS 0.213 vs 0.225); 0.004 NO la batía. Ver MODEL_STUDY.md §4.1.
+    model_decay_xi: float = 0.0015  # decaimiento temporal (~vida media ~15 meses)
     elo_prior_weight: float = 2.5  # ancla fuerte al Elo (predice mejor que el ranking FIFA)
 
     # --- Ajuste por disponibilidad de jugadores ---

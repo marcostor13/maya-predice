@@ -47,3 +47,24 @@ def accuracy(probs: list[tuple[float, float, float]], outcomes: list[str]) -> fl
         pred = OUTCOMES[max(range(3), key=lambda i: (ph, pd, pa)[i])]
         hits += int(pred == y)
     return hits / len(probs)
+
+
+def rps(probs: list[tuple[float, float, float]], outcomes: list[str]) -> float:
+    """Ranked Probability Score (la métrica estándar en fútbol; 0 = perfecto).
+
+    Tiene en cuenta el orden de los resultados (local < empate < visitante):
+    penaliza más equivocarse "lejos" que "cerca". RPS = 1/(r-1)·Σ (CP_i − CE_i)².
+    """
+    if not probs:
+        return 0.0
+    total = 0.0
+    for (ph, pd, pa), y in zip(probs, outcomes, strict=True):
+        p = (ph, pd, pa)
+        e = tuple(1.0 if OUTCOMES[i] == y else 0.0 for i in range(3))
+        cum_p = cum_e = acc = 0.0
+        for i in range(2):  # r - 1 = 2 términos acumulados
+            cum_p += p[i]
+            cum_e += e[i]
+            acc += (cum_p - cum_e) ** 2
+        total += acc / 2.0
+    return total / len(probs)

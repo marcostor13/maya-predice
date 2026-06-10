@@ -19,13 +19,16 @@ async def main() -> None:
     cutoff = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else None
     r = await run_backtest(cutoff)
     print(f"[backtest] corte={r.cutoff}  entreno={r.train_matches}  test={r.test_matches}")
-    print(f"[backtest] modelo : log-loss={r.log_loss:.3f}  Brier={r.brier:.3f}  acc={r.accuracy:.3f}")
     print(
-        f"[backtest] base   : log-loss={r.baseline_log_loss:.3f}  "
+        f"[backtest] modelo : RPS={r.rps:.4f}  log-loss={r.log_loss:.3f}  "
+        f"Brier={r.brier:.3f}  acc={r.accuracy:.3f}"
+    )
+    print(
+        f"[backtest] base   : RPS={r.baseline_rps:.4f}  log-loss={r.baseline_log_loss:.3f}  "
         f"Brier={r.baseline_brier:.3f}  acc={r.baseline_accuracy:.3f}"
     )
-    better = r.log_loss < r.baseline_log_loss
-    print(f"[backtest] el modelo {'SUPERA' if better else 'NO supera'} a la línea base (log-loss).")
+    better = r.rps < r.baseline_rps
+    print(f"[backtest] el modelo {'SUPERA' if better else 'NO supera'} a la línea base (RPS).")
 
 
 if __name__ == "__main__":
