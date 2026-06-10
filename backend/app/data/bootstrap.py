@@ -1,44 +1,48 @@
-"""Carga inicial automática de datos cuando la base está vacía.
+"""Carga inicial automática de datos cuando faltan predicciones/simulación.
 
 Pensado para ejecutarse al arrancar el contenedor (lo lanza `start.sh` en segundo
-plano). Es **idempotente**: si ya hay equipos cargados, no hace nada. Si la base
-está vacía, ingiere los datos oficiales, entrena el modelo, genera predicciones,
-simula el torneo y sincroniza las plantillas.
+plano). Es **idempotente**: si ya hay una simulación calculada, no hace nada. Si
+falta (base vacía, o solo se cargaron equipos/partidos a mano), ingiere los datos
+oficiales, entrena el modelo, genera predicciones, simula el torneo y sincroniza
+las plantillas. Así se auto-repara aunque antes se hubiera corrido solo `sync`.
 
-    python -m app.data.bootstrap
+    python -m app.data.bootstrap            # solo si falta la simulación
+    python -m app.data.bootstrap --force    # fuerza la carga/recalculo ahora
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
-from app.models.team import Team
+from app.models.simulation import SimulationRun
 from app.services.recompute import recompute_pipeline
 from app.services.squad_service import build_player_providers, sync_squads
 
 logger = logging.getLogger("maya.bootstrap")
 
 
-async def _already_loaded() -> bool:
+async def _needs_bootstrap() -> bool:
+    """Falta la carga si todavía no existe ninguna simulación (último artefacto)."""
     async with AsyncSessionLocal() as db:
-        count = (await db.execute(select(func.count()).select_from(Team))).scalar_one()
-    return count > 0
+        sim = (await db.execute(select(SimulationRun.id).limit(1))).first()
+    return sim is None
 
 
-async def run() -> None:
-    if not settings.enable_bootstrap:
+async def run(force: bool = False) -> None:
+    if not force and not settings.enable_bootstrap:
         return
-    if await _already_loaded():
-        logger.info("Datos ya cargados; no se ejecuta la carga inicial.")
+    if not force and not await _needs_bootstrap():
+        logger.info("Predicciones/simulación ya presentes; no se ejecuta la carga inicial.")
         print("[bootstrap] datos ya cargados; nada que hacer.", flush=True)
         return
 
-    print("[bootstrap] base vacía: cargando datos iniciales…", flush=True)
+    print("[bootstrap] faltan predicciones/simulación: cargando/recalculando…", flush=True)
     try:
         # Partidos oficiales + entrenamiento + predicciones + simulación.
         async with AsyncSessionLocal() as db:
@@ -64,4 +68,4 @@ async def run() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    asyncio.run(run(force="--force" in sys.argv))
