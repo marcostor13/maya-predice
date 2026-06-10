@@ -23,6 +23,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.jobs import JobInProgress, start_job
 from app.services.notifications import notify_subscribers
 from app.services.recompute import recompute_pipeline
 from app.services.squad_service import build_player_providers, sync_squads
@@ -46,20 +47,45 @@ async def _sync_squads_job() -> None:
             logger.exception("La verificación de plantillas falló.")
 
 
-async def run_daily_refresh() -> None:
-    """Refresco diario completo: plantillas + recálculo forzado (modelo/pred/sim)."""
-    logger.info("Refresco diario…")
-    await _sync_squads_job()
+async def _trigger_recompute(trigger: str, *, force: bool) -> bool:
+    """Lanza el recálculo **serializado** (un job a la vez, vía `start_job`).
+
+    Devuelve True si lo lanzó; False si ya había uno en curso (otro worker/cron o un
+    recálculo manual del admin). El recálculo corre en segundo plano con su propia
+    sesión y queda registrado en `job_runs` (visible en el panel).
+    """
     async with AsyncSessionLocal() as db:
         try:
-            summary = await recompute_pipeline(db, trigger="scheduled", force=True)
-            await db.commit()
-            logger.info("Refresco diario completo: %s", summary)
+            await start_job(
+                db, "recompute", lambda s: recompute_pipeline(s, trigger=trigger, force=force)
+            )
+            return True
+        except JobInProgress:
+            logger.info("Recálculo (%s) omitido: ya hay uno en curso.", trigger)
+            return False
         except Exception:
             await db.rollback()
-            logger.exception("El refresco diario falló.")
+            logger.exception("No se pudo lanzar el recálculo (%s).", trigger)
+            return False
 
-    # Envía el digest por email a los suscriptores (si hay resultados nuevos).
+
+async def run_hourly_refresh() -> None:
+    """Aprendizaje continuo (cada hora): recopila de todas las fuentes y reentrena.
+
+    1) sincroniza plantillas multi-fuente (jugadores/lesiones/fotos + DT),
+    2) lanza el recálculo forzado (reingesta de resultados + cuotas → reentreno →
+       predicciones → simulación). Así el modelo se afina con datos frescos cada hora.
+    """
+    logger.info("Aprendizaje continuo (horario)…")
+    await _sync_squads_job()
+    await _trigger_recompute("hourly", force=True)
+
+
+async def run_daily_refresh() -> None:
+    """Refresco diario: plantillas + recálculo + **digest por email** a suscriptores."""
+    logger.info("Refresco diario…")
+    await _sync_squads_job()
+    await _trigger_recompute("daily", force=True)
     async with AsyncSessionLocal() as db:
         try:
             sent = await notify_subscribers(db, only_with_results=True)
@@ -72,16 +98,8 @@ async def run_daily_refresh() -> None:
 
 
 async def run_live_update() -> None:
-    """Recálculo en vivo: solo trabaja si terminaron/ cambiaron partidos."""
-    async with AsyncSessionLocal() as db:
-        try:
-            summary = await recompute_pipeline(db, trigger="live")
-            await db.commit()
-            if summary["recomputed"]:
-                logger.info("Actualización en vivo aplicada: %s", summary)
-        except Exception:
-            await db.rollback()
-            logger.exception("La actualización en vivo falló.")
+    """Recálculo en vivo: solo trabaja si terminaron/cambiaron partidos (force=False)."""
+    await _trigger_recompute("live", force=False)
 
 
 def start_scheduler() -> None:
@@ -94,19 +112,32 @@ def start_scheduler() -> None:
         CronTrigger(hour=settings.sync_hour_utc, minute=settings.sync_minute_utc),
         id="daily_refresh",
         replace_existing=True,
+        max_instances=1,
     )
+    if settings.hourly_refresh_enabled:
+        _scheduler.add_job(
+            run_hourly_refresh,
+            IntervalTrigger(minutes=settings.hourly_refresh_minutes),
+            id="hourly_refresh",
+            replace_existing=True,
+            max_instances=1,
+        )
     if settings.enable_live_updates:
         _scheduler.add_job(
             run_live_update,
             IntervalTrigger(minutes=settings.live_poll_minutes),
             id="live_update",
             replace_existing=True,
+            max_instances=1,
         )
     _scheduler.start()
     logger.info(
-        "Scheduler activo: refresco diario %02d:%02d UTC; en vivo cada %s min (%s).",
+        "Scheduler activo: diario %02d:%02d UTC; aprendizaje horario cada %s min (%s); "
+        "en vivo cada %s min (%s).",
         settings.sync_hour_utc,
         settings.sync_minute_utc,
+        settings.hourly_refresh_minutes,
+        "on" if settings.hourly_refresh_enabled else "off",
         settings.live_poll_minutes,
         "on" if settings.enable_live_updates else "off",
     )

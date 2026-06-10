@@ -698,3 +698,36 @@ cuotas); migración válida en modo offline; `npm run build` OK.
 poner `ODDS_API_KEY` y `ENABLE_MARKET_ENSEMBLE=true`. Afinar ω por RPS cuando haya
 cuotas históricas (mecánica `best_blend_weight` ya lista). Fase 2: ensamble en el
 simulador (probabilidades de campeón).
+
+---
+
+## Entrada 020 — Aprendizaje continuo: cron horario multi-fuente
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Que el modelo mejore **cada hora** recopilando datos de diversas
+fuentes de forma constante y reentrenándose con ellos.
+
+**Qué se implementó.**
+- **Job horario `run_hourly_refresh`** (scheduler, cada `HOURLY_REFRESH_MINUTES`=60,
+  flag `HOURLY_REFRESH_ENABLED` on): (1) sincroniza plantillas multi-fuente
+  (jugadores/lesiones/fotos + DT desde thesportsdb/wikipedia/wikidata/apifootball/
+  sportmonks), (2) lanza el recálculo forzado → reingesta de resultados + **cuotas**
+  → reentreno → predicciones → simulación. El modelo se afina con datos frescos.
+- **Recálculos serializados.** Diario, horario, en vivo y manual ahora pasan **todos**
+  por `jobs.start_job` (un job a la vez, visible en `job_runs`/panel). `_trigger_recompute`
+  centraliza el lanzamiento y omite si ya hay uno en curso.
+- **Anti-duplicado entre workers.** `start_job` toma un **lock consultivo de Postgres**
+  (`pg_advisory_xact_lock`) en el "comprobar + crear job": con 2 workers Gunicorn —cada
+  uno con su scheduler— no se crean dos recálculos a la vez. No-op en SQLite (tests).
+- **CLI `python -m app.data.learn`** para cron externo (Coolify con `ENABLE_SCHEDULER=
+  false`): mismo ciclo (plantillas + recálculo) en un proceso que termina.
+- El **digest por email** queda solo en el job diario (no spamea cada hora).
+
+**Verificación.** ruff limpio; **92 tests** en verde (start_job sigue OK en SQLite, el
+lock es no-op fuera de Postgres); imports del scheduler/CLI correctos.
+
+**Pendiente / acción del usuario.** En Coolify ya viene activo por defecto
+(`HOURLY_REFRESH_ENABLED=true`). Asegurar la allowlist de fuentes (wikipedia/
+wikidata/thesportsdb/odds) y, si se prefiere cron externo, `ENABLE_SCHEDULER=false`
++ programar `python -m app.data.learn` cada hora. Durante el torneo se puede bajar
+`LIVE_POLL_MINUTES` para captar resultados más rápido.

@@ -116,6 +116,13 @@ class Settings(BaseSettings):
     enable_live_updates: bool = True
     live_poll_minutes: int = 60  # cada cuánto se reingieren resultados durante el torneo
 
+    # --- Aprendizaje continuo (cron horario) ---
+    # Cada hora recopila de todas las fuentes (plantillas/lesiones/fotos + cuotas +
+    # resultados), reentrena el modelo y regenera predicciones y simulación. Así el
+    # modelo se afina solo con datos frescos. Serializado (un recálculo a la vez).
+    hourly_refresh_enabled: bool = True
+    hourly_refresh_minutes: int = 60
+
     # Carga inicial automática al arrancar (solo si la base está vacía).
     enable_bootstrap: bool = True
 

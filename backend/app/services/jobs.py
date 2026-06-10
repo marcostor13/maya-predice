@@ -13,7 +13,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
@@ -24,6 +24,10 @@ logger = logging.getLogger("maya.jobs")
 # Un job en 'running' más viejo que esto se considera muerto (worker reiniciado):
 # no bloquea lanzar uno nuevo. El recompute real tarda < 3 min.
 STALE_AFTER = timedelta(minutes=30)
+
+# Clave del lock consultivo de Postgres que serializa el "comprobar + crear job"
+# entre los varios workers Gunicorn (cada uno corre su propio scheduler).
+_LOCK_KEY = 911_001
 
 Work = Callable[[AsyncSession], Awaitable[dict]]
 
@@ -90,7 +94,15 @@ def _spawn(coro: Awaitable[None]) -> None:
 
 
 async def start_job(db: AsyncSession, name: str, work: Work, *, trigger: str = "admin") -> JobRun:
-    """Crea el `JobRun` y lanza la tarea en segundo plano. Lanza `JobInProgress` si ya hay uno."""
+    """Crea el `JobRun` y lanza la tarea en segundo plano. Lanza `JobInProgress` si ya hay uno.
+
+    El "comprobar + crear" se serializa con un **lock consultivo de Postgres** (se
+    libera al commit) para que, con varios workers Gunicorn corriendo cada uno su
+    scheduler, no se creen dos recálculos a la vez. En SQLite (tests) es no-op.
+    """
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        await db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _LOCK_KEY})
+
     active = await _active_job(db)
     if active is not None:
         raise JobInProgress(active)

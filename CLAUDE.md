@@ -106,6 +106,9 @@ cd backend && python -m app.data.create_admin <usuario> <contraseña>
 # Recálculo en vivo (reingesta de resultados + reentreno + predicciones + simulación)
 cd backend && python -m app.data.recompute
 
+# Aprendizaje continuo (plantillas multi-fuente + recálculo forzado) — para cron horario
+cd backend && python -m app.data.learn
+
 # Tests backend
 cd backend && pytest
 
@@ -196,3 +199,9 @@ cd frontend && npm install && npm start  # http://localhost:4200
   `ODDS_API_KEY`. Defensivo: sin cuotas → solo-modelo. Solo afecta las predicciones
   por partido; el **simulador** (campeón) sigue solo-modelo (Fase 2). Detalle en
   `MODEL_STUDY.md` y `DEVLOG` 019.
+- **Aprendizaje continuo (cron horario).** `run_hourly_refresh` (scheduler, cada
+  `HOURLY_REFRESH_MINUTES`=60, flag `HOURLY_REFRESH_ENABLED`): sincroniza plantillas
+  multi-fuente y lanza el recálculo forzado. **Todos** los recálculos (horario, diario,
+  en vivo, manual) pasan por `jobs.start_job` → **uno a la vez**, con un **lock
+  consultivo de Postgres** (`pg_advisory_xact_lock`) para que los 2 workers Gunicorn
+  no lo dupliquen. Cron externo (si `ENABLE_SCHEDULER=false`): `python -m app.data.learn`.
