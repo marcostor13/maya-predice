@@ -44,3 +44,11 @@ def test_neutral_flag_parsed():
 def test_skips_unplayed_future_matches():
     results = parse_results(CSV, since_year=2010, team_filter="all")
     assert all(r.played_on.year < 2026 for r in results)
+
+
+def test_match_importance_weighting():
+    results = parse_results(CSV, since_year=2010, team_filter="all")
+    by_pair = {(r.home, r.away): r for r in results}
+    # amistoso pesa menos; partido de torneo (Copa America) pesa más
+    assert by_pair[("BRA", "ARG")].importance == 0.5  # Friendly
+    assert by_pair[("BRA", "Peru")].importance == 1.5  # Copa America (fase final)

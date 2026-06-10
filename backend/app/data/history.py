@@ -72,9 +72,28 @@ def parse_results(
                 away_goals=int(as_),
                 played_on=date(y, m, d),
                 neutral=str(row.get("neutral", "")).strip().lower() in ("true", "1", "yes"),
+                importance=_importance(row.get("tournament", "")),
             )
         )
     return out
+
+
+def _importance(tournament: str) -> float:
+    """Peso por tipo de partido: los amistosos importan menos que los oficiales.
+
+    Un amistoso con rotaciones es ruido; un partido de fase final es la señal más
+    relevante para predecir el rendimiento en el Mundial.
+    """
+    t = (tournament or "").lower()
+    if "friendly" in t:
+        return 0.5
+    # Fases finales de grandes torneos (la señal más fuerte).
+    finals = ("fifa world cup", "uefa euro", "copa américa", "copa america",
+              "african cup of nations", "afc asian cup", "confederations", "gold cup",
+              "nations league")
+    if any(f in t for f in finals) and "qualification" not in t:
+        return 1.5
+    return 1.0  # clasificatorios y resto
 
 
 class ResultsHistoryProvider:

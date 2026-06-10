@@ -37,6 +37,7 @@ class MatchResult:
     away_goals: int
     played_on: date | None = None
     neutral: bool = False
+    importance: float = 1.0  # peso del partido (amistoso < clasificatorio < fase final)
 
 
 @dataclass
@@ -97,7 +98,9 @@ class DixonColesModel:
         hg = np.array([m.home_goals for m in matches], dtype=float)
         ag = np.array([m.away_goals for m in matches], dtype=float)
         not_neutral = np.array([0.0 if m.neutral else 1.0 for m in matches])
-        weights = self._time_weights([m.played_on for m in matches])
+        # Peso = decaimiento temporal × importancia del partido (amistoso < oficial).
+        importance = np.array([m.importance for m in matches])
+        weights = self._time_weights([m.played_on for m in matches]) * importance
 
         # máscaras para la corrección de Dixon-Coles (marcadores bajos)
         m00 = (hg == 0) & (ag == 0)

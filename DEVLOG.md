@@ -341,3 +341,34 @@ un enlace de baja por cumplimiento.
 **Pendientes que dejó.**
 - Doble opt-in (confirmación de alta) si se requiere; bracket oficial 2026 exacto;
   walk-forward con reentrenos periódicos para un backtest aún más realista.
+
+---
+
+## Entrada 009 — Calibración de favoritos + variable de importancia del partido
+**Fecha:** 2026-06-09 · **Commit:** `pendiente`
+
+**Objetivo.** Los favoritos salían poco realistas (Bélgica/Curaçao arriba).
+Hacer el modelo más realista y analizar qué variables lo fortalecen.
+
+**Diagnóstico (con datos).** Con `HISTORY_TEAM_FILTER=both` (solo partidos entre
+las 48) había **muestra pequeña**: Curaçao salía #1 con solo 14 partidos. Bélgica
+arriba por su fuerte registro 2018-2022. El Elo (ajustado por rival y diferencia
+de goles) es más predictivo que el ranking FIFA → conviene anclarse a él.
+
+**Qué se implementó.**
+- Nuevos valores por defecto: `HISTORY_TEAM_FILTER=any` (cada selección ~100
+  partidos, ratings estables), `MODEL_DECAY_XI=0.004` (más forma reciente),
+  `ELO_PRIOR_WEIGHT=2.5` (ancla fuerte al Elo).
+- **Ponderación por importancia del partido**: `MatchResult.importance`
+  (amistoso 0.5 / clasificatorio 1.0 / fase final 1.5), derivada del `tournament`
+  del histórico; entra en el `fit` multiplicada por el decaimiento temporal.
+- `DATA_SOURCES.md`: análisis de variables que fortalecen el modelo (Elo, xG,
+  valor de mercado, importancia, forma, descanso) con impacto y estado.
+
+**Verificación.** Con la nueva config + importancia, top favoritos:
+**ESP, BRA, FRA, BEL, ARG, GER, COL, NOR, POR…** — realista y alineado con el
+consenso (Bélgica baja a ~4º). 61 tests en verde; ruff limpio.
+
+**Pendientes que dejó.**
+- Siguiente salto de precisión: **xG** y/o **valor de mercado**; blending con
+  cuotas para calibrar; localía real de anfitriones; bracket oficial 2026.

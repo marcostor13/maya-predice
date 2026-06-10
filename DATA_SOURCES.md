@@ -8,6 +8,31 @@
 
 ---
 
+## Qué variables fortalecen el modelo (análisis)
+
+Basado en la literatura de predicción de fútbol (ver fuentes al final) y en
+pruebas con nuestros datos:
+
+| Variable | Impacto | Estado |
+|---|---|---|
+| **Elo / pi-ratings** (rating dinámico, ajustado por rival y diferencia de goles) | **Alto** — predice mejor que el ranking FIFA oficial; la mejor señal "barata" | ✅ integrado como **prior fuerte** del modelo |
+| **Ponderar por importancia del partido** (amistoso < clasificatorio < fase final) | Medio-alto — los amistosos con rotaciones son ruido | ✅ integrado (peso 0.5 / 1.0 / 1.5) |
+| **Forma reciente** (más peso a lo último) | Medio-alto | ✅ decaimiento temporal `xi` |
+| **Más datos por equipo** (todos los rivales, no solo entre las 48) | Alto — evita ratings inflados por muestra pequeña (p.ej. Curaçao) | ✅ `HISTORY_TEAM_FILTER=any` |
+| **Disponibilidad de plantilla** (bajas/lesiones) | Medio (puntual por partido) | ✅ ajuste por posición×rol×estado |
+| **xG (expected goals)** — calidad de ocasiones, no solo goles | **Alto** — top feature en la investigación | ⏳ pendiente (`xG` por API/dataset) |
+| **Valor de mercado / fuerza de plantilla** | Medio-alto — refleja la calidad actual del plantel | ⏳ pendiente (Transfermarkt) |
+| **Cuotas de apuestas (blending)** | Alto para calibrar — benchmark difícil de batir | ⏳ pendiente (blending) |
+| **Descanso/viaje, altitud (Ciudad de México), localía de anfitriones** | Bajo-medio (ajuste fino) | ⏳ pendiente |
+
+**Conclusión de las pruebas:** el cambio de mayor impacto inmediato fue **anclar
+al Elo** (prior fuerte) + **usar todos los rivales** + **ponderar por importancia**.
+Con eso los favoritos pasaron de un ranking ruidoso (Curaçao #1) a uno realista:
+**España, Brasil, Francia, Argentina, Alemania, Portugal…**. El siguiente salto de
+precisión vendría de **xG** y/o **valor de mercado**.
+
+---
+
 ## Estado actual (ya integrado)
 
 | Dato | Fuente | Estado | Qué aporta |

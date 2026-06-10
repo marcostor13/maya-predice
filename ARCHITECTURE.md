@@ -126,9 +126,14 @@ Implementación: `backend/app/services/prediction/`
 
 **Entrenamiento (datos que nutren el modelo).** El histórico internacional
 (`app/data/history.py`, fuente martj42) provee miles de partidos reales; se
-combinan con los resultados ya jugados del torneo. La sede neutral se respeta
-(en un Mundial casi todo es neutral) y los partidos recientes pesan más
-(decaimiento `xi`). Catálogo de fuentes adicionales sugeridas: `DATA_SOURCES.md`.
+combinan con los resultados ya jugados del torneo. Cada partido se pondera por
+**decaimiento temporal** (lo reciente pesa más) × **importancia** (amistoso 0.5 <
+clasificatorio 1.0 < fase final 1.5). Por defecto se usan **todos los rivales**
+(`HISTORY_TEAM_FILTER=any`) para evitar ratings inflados por muestra pequeña, y un
+**prior Elo fuerte** ancla la fuerza a un rating opponent-adjusted (más predictivo
+que el ranking FIFA). La sede neutral se respeta (en un Mundial casi todo es
+neutral). Análisis de qué variables fortalecen el modelo y siguientes mejoras
+(xG, valor de mercado): `DATA_SOURCES.md`.
 
 **Ajuste por disponibilidad.** Antes de predecir, `prediction_service` calcula
 para cada equipo un factor de disponibilidad de ataque y defensa según su

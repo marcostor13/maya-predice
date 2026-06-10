@@ -57,9 +57,11 @@ class Settings(BaseSettings):
         "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
     )
     history_since_year: int = 2018
-    history_team_filter: str = "both"  # both | any | all
-    model_decay_xi: float = 0.0015  # decaimiento temporal por día (~vida media 1.3 años)
-    elo_prior_weight: float = 0.5   # peso del prior Elo (0 = sin prior)
+    # any = usa todos los rivales (cada selección ~100 partidos): ratings estables
+    # y opponent-adjusted. 'both' (solo entre las 48) sufre de muestra pequeña.
+    history_team_filter: str = "any"
+    model_decay_xi: float = 0.004  # más peso a la forma reciente (~vida media 6 meses)
+    elo_prior_weight: float = 2.5  # ancla fuerte al Elo (predice mejor que el ranking FIFA)
 
     # --- Ajuste por disponibilidad de jugadores ---
     enable_availability_adjustment: bool = True
