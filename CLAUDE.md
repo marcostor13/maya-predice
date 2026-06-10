@@ -185,3 +185,14 @@ cd frontend && npm install && npm start  # http://localhost:4200
   /admin/job`. El estado va en DB (no en memoria) porque producción corre 2 workers
   Gunicorn. El job corre con su **propia sesión** (`app/services/jobs.py`); un job a
   la vez; los obsoletos (>30 min) no bloquean.
+- **Plantillas: fotos + scraping.** Las fuentes aportan foto/info: `wikipedia`
+  (scraping vía API de MediaWiki: plantilla `{{nat fs player}}`, DT y fotos),
+  `thesportsdb` (strCutout) y `wikidata` (P18). Foto/info se consensúan por
+  **prioridad** (`merge_first_available`), no por voto. En Coolify allowlistar
+  `en.wikipedia.org`/`commons.wikimedia.org` y poner `PLAYER_SOURCES`.
+- **Ensamble con el mercado (acción #2).** `POST` recompute mezcla la predicción 1X2
+  con las cuotas de **The Odds API** (`app/data/odds/`): `P = ω·modelo + (1−ω)·mercado`
+  (`ensemble_model_weight`, ω=0.4). Flag `ENABLE_MARKET_ENSEMBLE` (off por defecto) +
+  `ODDS_API_KEY`. Defensivo: sin cuotas → solo-modelo. Solo afecta las predicciones
+  por partido; el **simulador** (campeón) sigue solo-modelo (Fase 2). Detalle en
+  `MODEL_STUDY.md` y `DEVLOG` 019.

@@ -94,6 +94,19 @@ class Settings(BaseSettings):
     enable_availability_adjustment: bool = True
     availability_adj_strength: float = 0.5
 
+    # --- Ensamble con cuotas de mercado (The Odds API) ---
+    # La señal más predictiva (núcleo del método de Opta). Mezcla la predicción del
+    # modelo con la probabilidad implícita del mercado: P = ω·modelo + (1−ω)·mercado.
+    enable_market_ensemble: bool = False
+    odds_api_key: str = ""  # env ODDS_API_KEY (the-odds-api.com; capa gratuita 500/mes)
+    odds_api_base: str = "https://api.the-odds-api.com/v4"
+    odds_sport_key: str = "soccer_fifa_world_cup"
+    odds_regions: str = "eu"
+    odds_cache_ttl_hours: int = 6  # las cuotas varían; se refrescan cada 6 h (con caché)
+    # ω = peso del MODELO (el mercado pesa 1−ω). Por defecto 0.4 (el mercado manda).
+    # Aún no validado por RPS (no hay cuotas históricas) → configurable por entorno.
+    ensemble_model_weight: float = 0.4
+
     # --- Simulación del torneo ---
     # 10.000 iteraciones (como el supercomputador de Opta): menos varianza en las
     # probabilidades de avance/campeón que con 5.000.

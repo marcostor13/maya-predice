@@ -67,6 +67,9 @@ const STAGE_LABEL: Record<MatchStage, string> = {
                             <span class="draw">X {{ pct(p.p_draw) }}</span>
                             <span class="away">{{ pct(p.p_away) }}</span>
                           </div>
+                          @if (p.ensemble) {
+                            <div class="mkt" title="Predicción mezclada con las cuotas del mercado">💰 incluye mercado</div>
+                          }
                         } @else { <span class="vs muted">vs</span> }
                       }
                     </div>
@@ -120,6 +123,7 @@ const STAGE_LABEL: Record<MatchStage, string> = {
       .odds .home { color: var(--primary); font-weight: 700; }
       .odds .draw { color: var(--muted); }
       .odds .away { color: var(--accent); font-weight: 700; }
+      .mkt { font-size: .64rem; color: var(--gold); margin-top: 3px; text-align: center; opacity: .85; }
       .venue { font-size: .78rem; text-align: right; }
       @media (max-width: 720px) {
         .match { grid-template-columns: 60px 1fr; }

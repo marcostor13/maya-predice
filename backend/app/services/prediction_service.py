@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.data.players.base import normalize_name
 from app.models.match import Match, MatchStatus
 from app.models.prediction import Prediction
 from app.models.squad import Player
@@ -21,7 +22,10 @@ from app.services.prediction.availability import (
     compute_team_adjustment,
 )
 from app.services.prediction.dixon_coles import DixonColesModel, TeamAdjustment
+from app.services.prediction.ensemble import blend_one
 from app.services.prediction.training import train_model
+
+Triple = tuple[float, float, float]
 
 # Reexport para compatibilidad con callers previos.
 __all__ = [
@@ -73,9 +77,18 @@ async def compute_all_adjustments(db: AsyncSession) -> dict[str, TeamAdjustment]
 
 
 async def predict_and_store(
-    db: AsyncSession, match: Match, model: DixonColesModel, *, neutral: bool = True
+    db: AsyncSession,
+    match: Match,
+    model: DixonColesModel,
+    *,
+    neutral: bool = True,
+    market: Triple | None = None,
 ) -> Prediction:
-    """Genera y persiste la predicción de un partido (con ajuste por plantilla)."""
+    """Genera y persiste la predicción de un partido (con ajuste por plantilla).
+
+    Si `market` (terna de cuotas) viene dada y el ensamble está activo, la
+    probabilidad 1X2 final se **mezcla** con el mercado (P = ω·modelo + (1−ω)·mercado).
+    """
     codes = {t.id: t.code for t in (await db.execute(select(Team))).scalars().all()}
     home, away = codes.get(match.home_team_id), codes.get(match.away_team_id)
     if home is None or away is None:
@@ -86,39 +99,79 @@ async def predict_and_store(
 
     probs = model.predict(home, away, neutral=neutral, home_adj=home_adj, away_adj=away_adj)
 
+    p_home, p_draw, p_away = probs.p_home, probs.p_draw, probs.p_away
+    ensemble_meta = None
+    if market is not None and settings.enable_market_ensemble:
+        w = settings.ensemble_model_weight
+        p_home, p_draw, p_away = blend_one((p_home, p_draw, p_away), market, w)
+        ensemble_meta = {
+            "model": [round(probs.p_home, 4), round(probs.p_draw, 4), round(probs.p_away, 4)],
+            "market": [round(x, 4) for x in market],
+            "weight": w,
+        }
+
     prediction = Prediction(
         match_id=match.id,
         model_version=settings.model_version,
-        p_home=probs.p_home,
-        p_draw=probs.p_draw,
-        p_away=probs.p_away,
+        p_home=p_home,
+        p_draw=p_draw,
+        p_away=p_away,
         expected_home_goals=probs.expected_home_goals,
         expected_away_goals=probs.expected_away_goals,
         scoreline_probs=probs.top_scorelines(5),
         adjustments={"home": home_info, "away": away_info, "neutral": neutral},
+        ensemble=ensemble_meta,
     )
     db.add(prediction)
     await db.flush()
     return prediction
 
 
+async def _fetch_market_odds() -> dict[tuple[str, str], Triple]:
+    """Cuotas 1X2 del mercado por partido (una llamada cacheada). {} si no aplica."""
+    if not (settings.enable_market_ensemble and settings.odds_api_key):
+        return {}
+    from app.data.odds.the_odds_api import TheOddsApiProvider
+
+    provider = TheOddsApiProvider(
+        settings.odds_api_key,
+        settings.odds_api_base,
+        settings.odds_sport_key,
+        settings.odds_regions,
+        settings.odds_cache_ttl_hours,
+    )
+    try:
+        return await provider.fetch_match_probabilities()
+    except Exception:  # noqa: BLE001 — sin cuotas se predice solo-modelo (nunca rompe)
+        return {}
+
+
 async def regenerate_upcoming_predictions(db: AsyncSession, model: DixonColesModel) -> int:
     """Recalcula la predicción de todos los partidos pendientes con equipos definidos.
 
     Se usa tras actualizarse los resultados: el modelo cambia y las predicciones de
-    lo venidero deben reflejarlo.
+    lo venidero deben reflejarlo. Si el ensamble con el mercado está activo, mezcla
+    cada predicción con las cuotas (una sola llamada a la API, cacheada).
     """
     matches = (
         await db.execute(
             select(Match).where(Match.status == MatchStatus.SCHEDULED)
         )
     ).scalars().all()
+    teams = {t.id: t for t in (await db.execute(select(Team))).scalars().all()}
+    odds = await _fetch_market_odds()
+
     count = 0
     for match in matches:
         if match.home_team_id is None or match.away_team_id is None:
             continue
+        market = None
+        if odds:
+            h, a = teams.get(match.home_team_id), teams.get(match.away_team_id)
+            if h and a:
+                market = odds.get((normalize_name(h.name), normalize_name(a.name)))
         try:
-            await predict_and_store(db, match, model, neutral=True)
+            await predict_and_store(db, match, model, neutral=True, market=market)
             count += 1
         except KeyError:
             continue  # equipo aún no presente en el modelo

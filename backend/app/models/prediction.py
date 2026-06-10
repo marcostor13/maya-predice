@@ -32,6 +32,11 @@ class Prediction(Base):
     # p.ej. {"home": {"attack_availability": 0.92, ...}, "away": {...}, "neutral": true}
     adjustments: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # Ensamble con el mercado: si se mezcló con cuotas, guarda la terna del modelo,
+    # la del mercado y el peso ω usado. Null = predicción solo-modelo.
+    # p.ej. {"model": [.5,.3,.2], "market": [.45,.3,.25], "weight": 0.4}
+    ensemble: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     match = relationship("Match", back_populates="predictions")

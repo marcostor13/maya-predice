@@ -656,3 +656,45 @@ del consenso de fotos); migración válida en modo offline; `npm run build` OK.
 `PLAYER_SOURCES=thesportsdb,wikipedia,wikidata` (+ apifootball/sportmonks si hay
 keys). En el sandbox de desarrollo esos hosts no responden (por eso `fixture` sigue
 siendo el default en dev).
+
+---
+
+## Entrada 019 — Ensamble con cuotas de mercado (The Odds API)
+**Fecha:** 2026-06-10 · **Commit:** `pendiente`
+
+**Objetivo.** Implementar la mayor palanca de precisión del estudio (acción #2, el
+núcleo del método de Opta): **mezclar la predicción del modelo con las cuotas del
+mercado**, la señal más predictiva que existe.
+
+**Decisiones.**
+- **Fuente: The Odds API** (the-odds-api.com), capa **gratuita** (500 créditos/mes):
+  una sola llamada trae las cuotas 1X2 de todo el Mundial; con el caché en DB
+  (`api_cache`) el gasto es mínimo. Elegida por coste €0 frente al add-on de odds de
+  Sportmonks (€14–69/mes) y API-Football ($19/mes).
+- **Fase 1 (hecha): predicciones por partido.** Se mezclan las predicciones 1X2
+  guardadas. **Fase 2 (futuro): el simulador** — inyectar cuotas en los partidos de
+  grupo es invasivo (la tabla necesita diferencia de goles, no solo 1X2), se hará
+  tras verificar el flujo de cuotas en producción.
+
+**Qué se implementó.**
+- **Proveedor** `app/data/odds/the_odds_api.py`: `decimal_to_probabilities` (cuotas
+  → prob. implícita **sin margen**), `parse_odds_events` (promedia casas, indexa por
+  nombres normalizados) y `TheOddsApiProvider.fetch_match_probabilities` (1 llamada
+  cacheada). Funciones puras y testeadas.
+- **Mezcla** en `predict_and_store(market=…)` con `blend_one` (P = ω·modelo +
+  (1−ω)·mercado); guarda en `Prediction.ensemble` la terna del modelo, la del mercado
+  y ω (migración `e3c4d5f6a7b8`). `regenerate_upcoming_predictions` obtiene las cuotas
+  (1 llamada) y empareja por nombre de equipo normalizado.
+- **Defensivo:** si el ensamble está apagado, no hay key o falla la API → predicción
+  **solo-modelo** (nunca rompe). Flag `ENABLE_MARKET_ENSEMBLE` (def. off),
+  `ODDS_API_KEY`, `ENSEMBLE_MODEL_WEIGHT` (ω, def. 0.4 → el mercado pesa más).
+- **Transparencia:** `/admin/factors` añade el factor "Cuotas de mercado" + la config;
+  el fixture muestra "💰 incluye mercado" en los partidos mezclados.
+
+**Verificación.** ruff limpio; **92 tests** en verde (5 nuevos del proveedor de
+cuotas); migración válida en modo offline; `npm run build` OK.
+
+**Pendiente / acción del usuario.** En Coolify: allowlistar `api.the-odds-api.com`,
+poner `ODDS_API_KEY` y `ENABLE_MARKET_ENSEMBLE=true`. Afinar ω por RPS cuando haya
+cuotas históricas (mecánica `best_blend_weight` ya lista). Fase 2: ensamble en el
+simulador (probabilidades de campeón).

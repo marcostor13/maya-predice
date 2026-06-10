@@ -79,8 +79,21 @@ async def factors():
             "ajuste_por_disponibilidad": settings.enable_availability_adjustment,
             "iteraciones_simulacion": settings.simulation_iterations,
             "fuentes_plantillas": settings.player_sources_list,
+            "ensamble_mercado": settings.enable_market_ensemble,
+            "peso_modelo_ensamble": settings.ensemble_model_weight,
         },
         "factores": [
+            *(
+                [{
+                    "icon": "💰",
+                    "nombre": "Cuotas de mercado (ensamble)",
+                    "desc": "La predicción 1X2 se mezcla con la probabilidad implícita de las casas "
+                            f"de apuestas (ω={settings.ensemble_model_weight} al modelo): es la señal "
+                            "más precisa que existe, como hace el supercomputador de Opta.",
+                }]
+                if settings.enable_market_ensemble
+                else []
+            ),
             {"icon": "📊", "nombre": "Fuerza histórica (ataque y defensa)",
              "desc": "Estimada por máxima verosimilitud de ~49.000 partidos internacionales reales (martj42)."},
             {"icon": "🏅", "nombre": "Prior Elo",

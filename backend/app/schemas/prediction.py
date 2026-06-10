@@ -22,6 +22,7 @@ class PredictionRead(BaseModel):
     expected_away_goals: float
     scoreline_probs: list[ScorelineProb] | None = None
     adjustments: dict | None = None
+    ensemble: dict | None = None
     created_at: datetime
 
 

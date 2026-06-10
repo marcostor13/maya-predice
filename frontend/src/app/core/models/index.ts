@@ -61,6 +61,7 @@ export interface Prediction {
   expected_away_goals: number;
   scoreline_probs?: ScorelineProb[];
   adjustments?: Record<string, unknown>;
+  ensemble?: { model: number[]; market: number[]; weight: number } | null;
   created_at: string;
 }
 
