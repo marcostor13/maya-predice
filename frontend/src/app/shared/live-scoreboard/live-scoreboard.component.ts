@@ -6,6 +6,7 @@ import { catchError, forkJoin, of, switchMap, timer } from 'rxjs';
 
 import { LiveMatch, Prediction } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { LiveEspnService } from '../../core/services/live-espn.service';
 import { FlagComponent } from '../flag/flag.component';
 
 /**
@@ -153,6 +154,7 @@ export class LiveScoreboardComponent {
   @Input() link = '/en-vivo';
 
   private api = inject(ApiService);
+  private liveEspn = inject(LiveEspnService);
   private destroyRef = inject(DestroyRef);
 
   matches = signal<LiveMatch[]>([]);
@@ -163,14 +165,16 @@ export class LiveScoreboardComponent {
       .pipe(
         switchMap(() =>
           forkJoin({
-            live: this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
+            backendLive: this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
+            today: this.api.getTodayMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
             preds: this.api.getPredictions().pipe(catchError(() => of<Prediction[]>([]))),
+            espn: this.liveEspn.getEspnLive(),
           }),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(({ live, preds }) => {
-        this.matches.set(live);
+      .subscribe(({ backendLive, today, preds, espn }) => {
+        this.matches.set(LiveEspnService.mergeLive(backendLive, espn, today));
         this.predsById.set(new Map(preds.map((p) => [p.match_id, p])));
       });
   }

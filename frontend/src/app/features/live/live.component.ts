@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of, switchMap, timer } from 'rxjs';
+import { catchError, forkJoin, of, switchMap, timer } from 'rxjs';
 
 import { LiveMatch } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { LiveEspnService } from '../../core/services/live-espn.service';
 import { SeoService } from '../../core/services/seo.service';
 import { fadeIn, listStagger } from '../../core/util/animations';
 import { FlagComponent } from '../../shared/flag/flag.component';
@@ -126,6 +127,7 @@ const DEFAULT_SEO = {
 })
 export class LiveComponent {
   private api = inject(ApiService);
+  private liveEspn = inject(LiveEspnService);
   private seo = inject(SeoService);
   private destroyRef = inject(DestroyRef);
 
@@ -136,20 +138,22 @@ export class LiveComponent {
   private featured = computed<LiveMatch | undefined>(() => this.live()[0]);
 
   constructor() {
+    // Misma lógica de merge que el marcador: backend preferente, ESPN (vía proxy
+    // de Netlify) como fallback, casando por código FIFA contra los partidos de hoy.
     timer(0, 120_000)
       .pipe(
-        switchMap(() => this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([])))),
+        switchMap(() =>
+          forkJoin({
+            backendLive: this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
+            today: this.api.getTodayMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
+            espn: this.liveEspn.getEspnLive(),
+          }),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((list) => this.live.set(list));
-
-    timer(0, 120_000)
-      .pipe(
-        switchMap(() => this.api.getTodayMatches().pipe(catchError(() => of<LiveMatch[]>([])))),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((list) => {
-        this.today.set(list);
+      .subscribe(({ backendLive, today, espn }) => {
+        this.live.set(LiveEspnService.mergeLive(backendLive, espn, today));
+        this.today.set(today);
         this.loadingToday.set(false);
       });
 

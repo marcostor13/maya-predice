@@ -15,7 +15,17 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Proxy a la API pública de ESPN. Netlify (no el backend de Coolify) hace de
+# proxy del lado servidor, así que el navegador lo consume mismo-origen (sin
+# CORS) y sin tocar la allowlist de Coolify. DEBE ir ANTES del catch-all `/*`
+# (las reglas se evalúan en orden).
+[[redirects]]
+  from = "/proxy/espn/*"
+  to = "https://site.api.espn.com/:splat"
+  status = 200
+
 # Redirección SPA: todas las rutas sirven index.html (Angular router las maneja).
+# Catch-all: SIEMPRE el último.
 [[redirects]]
   from = "/*"
   to = "/index.html"
