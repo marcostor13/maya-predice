@@ -766,3 +766,32 @@ en modo offline; `npm run build` OK.
 **Nota.** Los cambios de **comportamiento** (ensamble, fuentes, ω, on/off de crones)
 aplican en el próximo ciclo; los **intervalos** de los crones aplican del todo tras
 reiniciar el backend (o en el worker que atendió el guardado).
+
+---
+
+## Entrada 022 — Monetización: AdSense + afiliados de apuestas
+**Fecha:** 2026-06-11 · **Commit:** `pendiente`
+
+**Objetivo.** Monetizar la plataforma aprovechando el pico de tráfico del Mundial
+(empieza hoy): anuncios display + afiliación de casas de apuestas.
+
+**Qué se implementó.**
+- **`MONETIZATION.md`**: análisis completo (vías, ingresos estimados, esfuerzo,
+  plazos, hoja de ruta y consideraciones legales).
+- **Anuncios (AdSense):** `shared/ad-slot` (solo carga si hay `adsenseClient` +
+  consentimiento), banner de cookies (`shared/consent-banner` + `consent.service`),
+  página `/privacidad`, `ads.txt` servido en la raíz (`src/static` + `angular.json`).
+  Slots en dashboard y fixture. Sin configurar → el sitio queda idéntico.
+- **Afiliados (editable en caliente):** ajustes `affiliate_enabled/url/label` (grupo
+  Monetización del panel ⚙️), endpoint público `GET /api/v1/config` (sin secretos),
+  componente `shared/affiliate-cta` con `rel="sponsored"` + aviso +18, en dashboard
+  y fixture. `ConfigService` carga la config pública una vez al arrancar.
+- **Cumplimiento:** disclaimer permanente en el footer (+18, juego responsable,
+  "estimaciones estadísticas, no consejo de apuestas") + enlace a Privacidad.
+
+**Verificación.** ruff limpio; **98 tests** en verde (2 nuevos del endpoint público);
+`npm run build` OK; `ads.txt` copiado a la raíz del publish de Netlify.
+
+**Acción del usuario.** (1) Crear cuenta AdSense y pegar el `pub-id` en
+`environment*.ts` + `ads.txt`. (2) Alta en un programa de afiliados; pegar la URL en
+el panel y activar. (3) Revisar la regulación de juego del país objetivo.

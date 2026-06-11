@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.endpoints import (
     admin,
+    config,
     matches,
     predictions,
     simulate,
@@ -25,3 +26,4 @@ api_router.include_router(squads.router)
 api_router.include_router(simulate.router)
 api_router.include_router(subscribers.router)
 api_router.include_router(venues.router)
+api_router.include_router(config.router)

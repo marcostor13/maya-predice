@@ -126,6 +126,13 @@ class Settings(BaseSettings):
     # Carga inicial automática al arrancar (solo si la base está vacía).
     enable_bootstrap: bool = True
 
+    # --- Monetización (afiliados) ---
+    # Enlace de afiliado (p. ej. casa de apuestas) mostrado como CTA. Editable
+    # desde el panel admin. Público (no es secreto). Incluye su disclaimer +18.
+    affiliate_enabled: bool = False
+    affiliate_url: str = ""
+    affiliate_label: str = "nuestra casa recomendada"
+
     # --- Notificaciones por email (suscriptores) ---
     notifications_enabled: bool = False
     smtp_host: str = ""

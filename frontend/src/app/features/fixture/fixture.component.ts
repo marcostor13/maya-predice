@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { Match, MatchStage, Prediction, Team } from '../../core/models';
 import { FlagComponent } from '../../shared/flag/flag.component';
 import { listStagger } from '../../core/util/animations';
+import { AffiliateCtaComponent } from '../../shared/affiliate-cta/affiliate-cta.component';
 
 const STAGE_LABEL: Record<MatchStage, string> = {
   group: 'Fase de grupos',
@@ -20,12 +21,14 @@ const STAGE_LABEL: Record<MatchStage, string> = {
 @Component({
   selector: 'app-fixture',
   standalone: true,
-  imports: [CommonModule, FlagComponent],
+  imports: [CommonModule, FlagComponent, AffiliateCtaComponent],
   animations: [listStagger],
   template: `
     <div class="container page">
       <h1>📅 Fixture del Mundial 2026</h1>
       <p class="muted">104 partidos · horarios en tu zona local · resultados y pronósticos.</p>
+
+      <app-affiliate-cta />
 
       <div class="filters">
         <button class="chip f" [class.on]="stage() === ''" (click)="stage.set('')">Todos</button>

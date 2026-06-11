@@ -1,0 +1,6 @@
+# ads.txt — Authorized Digital Sellers (IAB)
+# Cuando apruebes tu cuenta de Google AdSense, sustituye la línea de ejemplo por
+# la tuya (tu pub-id real). Google exige este archivo en la raíz del dominio para
+# autorizar la venta de tu inventario publicitario.
+#
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

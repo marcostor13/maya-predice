@@ -34,8 +34,13 @@ import { RouterLink } from '@angular/router';
             </div>
           </div>
         </div>
+        <p class="disclaimer muted small">
+          Las predicciones son <b>estimaciones estadísticas</b>, no consejo de apuestas.
+          Contenido para mayores de <b>+18</b>. Juega con responsabilidad.
+        </p>
         <div class="copy muted small">
           © {{ year }} maya-predice · Hecho con ⚽ y estadística. ·
+          <a routerLink="/privacidad" class="admin-link">Privacidad</a> ·
           <a routerLink="/admin" class="admin-link">Admin</a>
         </div>
       </div>
@@ -62,7 +67,8 @@ import { RouterLink } from '@angular/router';
       }
       .socials a:hover { transform: translateY(-3px); background: var(--surface-2); }
       .handles { display: flex; flex-direction: column; gap: 2px; }
-      .copy { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); }
+      .disclaimer { text-align: center; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--border); }
+      .copy { text-align: center; margin-top: 14px; }
       .admin-link { color: var(--muted); }
       @media (max-width: 620px) { .author { text-align: left; } .socials { justify-content: flex-start; } .handles { align-items: flex-start; } }
     `,

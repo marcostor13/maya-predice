@@ -208,6 +208,13 @@ cd frontend && npm install && npm start  # http://localhost:4200
 - **Configuración editable desde el admin.** Tabla `app_settings` (overrides) +
   `app/services/app_settings.py` (registro `EDITABLE`). Pisan el entorno para ajustes
   operativos (crones on/off + minutos, ensamble + ω + odds key, fuentes, disponibilidad,
-  iteraciones, emails, hora diaria). Se aplican sobre `settings` en memoria al arrancar
-  y al inicio de cada job (los 2 workers convergen). Endpoints `GET/POST /admin/settings`;
-  panel ⚙️ Configuración. Los hiperparámetros del modelo NO son editables (blindados).
+  iteraciones, emails, hora diaria, **afiliado**). Se aplican sobre `settings` en memoria
+  al arrancar y al inicio de cada job (los 2 workers convergen). Endpoints
+  `GET/POST /admin/settings`; panel ⚙️ Configuración. Los hiperparámetros del modelo NO
+  son editables (blindados).
+- **Monetización.** Ver `MONETIZATION.md`. (1) **AdSense**: `shared/ad-slot` solo
+  carga si hay `adsenseClient` (en `environment*.ts`) + consentimiento de cookies
+  (`shared/consent-banner` + `consent.service`); `ads.txt` en `src/static`. (2)
+  **Afiliado**: ajustes `affiliate_*` editables en el panel + endpoint público
+  `GET /api/v1/config` (sin secretos) + `shared/affiliate-cta` (`rel="sponsored"`,
+  aviso +18). Footer con disclaimer permanente y enlace a `/privacidad`.

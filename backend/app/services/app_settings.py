@@ -82,6 +82,15 @@ EDITABLE: tuple[SettingSpec, ...] = (
                 "Hora del refresco (UTC)",
                 "Hora UTC del refresco diario + digest (aplica tras reiniciar).",
                 min=0, max=23),
+    SettingSpec("affiliate_enabled", "bool", "Monetización",
+                "CTA de afiliado activo",
+                "Muestra el botón de afiliado (p. ej. casa de apuestas) en la web."),
+    SettingSpec("affiliate_url", "str", "Monetización",
+                "URL de afiliado",
+                "Tu enlace con el tag de afiliación. Se abre en pestaña nueva."),
+    SettingSpec("affiliate_label", "str", "Monetización",
+                "Nombre a mostrar",
+                "Texto del botón, p. ej. el nombre de la casa (Bet365, Codere…)."),
 )
 
 _SPECS = {s.key: s for s in EDITABLE}

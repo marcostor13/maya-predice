@@ -8,11 +8,13 @@ import { Match, Prediction, Team, TeamSimulation } from '../../core/models';
 import { FlagComponent } from '../../shared/flag/flag.component';
 import { fadeIn, listStagger } from '../../core/util/animations';
 import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
+import { AdSlotComponent } from '../../shared/ad-slot/ad-slot.component';
+import { AffiliateCtaComponent } from '../../shared/affiliate-cta/affiliate-cta.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent],
+  imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent, AdSlotComponent, AffiliateCtaComponent],
   animations: [fadeIn, listStagger],
   template: `
     <!-- HERO -->
@@ -37,6 +39,9 @@ import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
     </section>
 
     <div class="container">
+      <app-affiliate-cta />
+      <app-ad-slot slot="" />
+
       <!-- STATS -->
       <section class="stats" @listStagger>
         @for (s of stats(); track s.label) {
