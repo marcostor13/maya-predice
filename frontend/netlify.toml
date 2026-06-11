@@ -24,6 +24,15 @@
   to = "https://site.api.espn.com/:splat"
   status = 200
 
+# Proxy a la API de MediaWiki (Wikipedia). Mismo patrón que ESPN: Netlify hace de
+# proxy del lado servidor, así que el navegador lo consume mismo-origen (sin CORS)
+# y sin tocar la allowlist de Coolify. Lo usa `wiki-squad.service.ts` para extraer
+# plantillas + fotos cuando el backend no las trae. DEBE ir ANTES del catch-all.
+[[redirects]]
+  from = "/proxy/wiki/*"
+  to = "https://en.wikipedia.org/:splat"
+  status = 200
+
 # Redirección SPA: todas las rutas sirven index.html (Angular router las maneja).
 # Catch-all: SIEMPRE el último.
 [[redirects]]

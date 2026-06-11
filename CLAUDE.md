@@ -238,6 +238,16 @@ cd frontend && npm install && npm start  # http://localhost:4200
   usa el **primer provider que devuelve datos**. El job `live_scores` (cada
   `live_scores_minutes`=2, flag `enable_live_scores` **off**) solo refresca marcador/minuto
   (no reentrena). openfootball NO da in-play. Allowlistar los hosts de las fuentes usadas.
+- **Proxy de Netlify = datos gratis sin tocar la allowlist de Coolify.** El allowlist solo
+  limita al **backend**; el **navegador** y **Netlify** no. Por eso hay reglas en
+  `frontend/netlify.toml` que proxyan mismo-origen (sin CORS): `/proxy/espn/*` →
+  `site.api.espn.com` (marcador en vivo, `core/services/live-espn.service.ts`) y
+  `/proxy/wiki/*` → `en.wikipedia.org` (plantillas+fotos, `core/services/wiki-squad.service.ts`).
+  El navegador trae los datos y los casa con los nuestros (live por código FIFA; squads como
+  fallback cuando el backend viene vacío, con chip "vía Wikipedia"). Las reglas `[[redirects]]`
+  específicas van SIEMPRE antes del catch-all SPA `/*`. En `ng serve` esas rutas no existen →
+  devuelven vacío (no rompe); solo operan en Netlify. Es la vía para añadir fuentes gratis sin
+  depender de la infra de Coolify.
 - **Monetización.** Ver `MONETIZATION.md`. (1) **AdSense**: `shared/ad-slot` solo
   carga si hay `adsenseClient` (en `environment*.ts`) + consentimiento de cookies
   (`shared/consent-banner` + `consent.service`); `ads.txt` en `src/static`. (2)

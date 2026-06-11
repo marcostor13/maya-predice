@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
+import { WikiSquadService } from '../../core/services/wiki-squad.service';
 import { Player, Position, Squad } from '../../core/models';
 import { FlagComponent } from '../../shared/flag/flag.component';
 import { fadeIn, listStagger } from '../../core/util/animations';
@@ -40,6 +41,9 @@ const STATUS: Record<string, { t: string; c: string }> = {
             <div class="chips">
               <span class="chip">{{ s.team_code }}</span>
               <span class="chip">👥 {{ s.players.length }} jugadores</span>
+              @if (fromWiki()) {
+                <span class="chip wiki">Plantilla vía Wikipedia</span>
+              }
             </div>
           </div>
           @if (s.coach; as c) {
@@ -121,15 +125,18 @@ const STATUS: Record<string, { t: string; c: string }> = {
       .status.warn { color: var(--gold); background: rgba(251,191,36,.12); }
       .status.mut { color: var(--muted); background: var(--surface-2); }
       .empty { padding: 30px; text-align: center; }
+      .chip.wiki { font-size: .72rem; opacity: .85; }
     `,
   ],
 })
 export class TeamDetailComponent {
   private api = inject(ApiService);
+  private wiki = inject(WikiSquadService);
   private route = inject(ActivatedRoute);
 
   squad = signal<Squad | null>(null);
   loading = signal(true);
+  fromWiki = signal(false);
 
   positions = computed(() => {
     const s = this.squad();
@@ -149,7 +156,44 @@ export class TeamDetailComponent {
   constructor() {
     const code = this.route.snapshot.paramMap.get('code') ?? '';
     this.api.getSquad(code).subscribe({
-      next: (s) => { this.squad.set(s); this.loading.set(false); },
+      next: (s) => {
+        this.squad.set(s);
+        // Si el backend no trae jugadores, intenta Wikipedia (vía proxy de Netlify).
+        if (!s?.players?.length && s?.team_name) {
+          this.tryWikipedia(s.team_name, s.team_code || code);
+        } else {
+          this.loading.set(false);
+        }
+      },
+      // Backend 404/caído: recupera el nombre EN por código y prueba Wikipedia.
+      error: () => this.fallbackFromTeams(code),
+    });
+  }
+
+  /** Sin squad del backend: obtiene el nombre en inglés desde /teams y prueba Wikipedia. */
+  private fallbackFromTeams(code: string): void {
+    this.api.getTeams().subscribe({
+      next: (teams) => {
+        const team = teams.find((t) => t.code === code);
+        if (team?.name) {
+          this.tryWikipedia(team.name, code);
+        } else {
+          this.loading.set(false);
+        }
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private tryWikipedia(teamName: string, code: string): void {
+    this.wiki.getSquad(teamName, code).subscribe({
+      next: (w) => {
+        if (w?.players?.length) {
+          this.squad.set(w);
+          this.fromWiki.set(true);
+        }
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
