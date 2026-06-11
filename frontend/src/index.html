@@ -2,6 +2,23 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
+
+    <!-- Google tag (gtag.js) — GA4 con Consent Mode v2. Lo más arriba posible. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8KRF0P5NZJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      // Por defecto denegado hasta que el usuario acepte cookies (RGPD).
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('js', new Date());
+      gtag('config', 'G-8KRF0P5NZJ');
+    </script>
+
     <title>maya-predice · Predicciones del Mundial 2026 con IA</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -54,22 +71,6 @@
         },
         "url": "https://mayapredice.site/"
       }
-    </script>
-
-    <!-- Google Analytics 4 (gtag.js) con Consent Mode v2 -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8KRF0P5NZJ"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      // Por defecto denegado hasta que el usuario acepte cookies (RGPD).
-      gtag('consent', 'default', {
-        ad_storage: 'denied',
-        analytics_storage: 'denied',
-        ad_user_data: 'denied',
-        ad_personalization: 'denied'
-      });
-      gtag('js', new Date());
-      gtag('config', 'G-8KRF0P5NZJ');
     </script>
 
     <!-- Google AdSense: loader para verificación del sitio y Auto ads.
