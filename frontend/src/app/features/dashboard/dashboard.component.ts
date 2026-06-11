@@ -18,6 +18,11 @@ import { LiveScoreboardComponent } from '../../shared/live-scoreboard/live-score
   imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent, AdSlotComponent, AffiliateCtaComponent, LiveScoreboardComponent],
   animations: [fadeIn, listStagger],
   template: `
+    <!-- EN VIVO primero (se auto-oculta si no hay partidos en curso) -->
+    <div class="container live-top">
+      <app-live-scoreboard title="🔴 En vivo ahora" link="/en-vivo" />
+    </div>
+
     <!-- HERO -->
     <section class="hero">
       <div class="container hero-inner">
@@ -40,19 +45,58 @@ import { LiveScoreboardComponent } from '../../shared/live-scoreboard/live-score
     </section>
 
     <div class="container">
-      <app-live-scoreboard title="🔴 En vivo ahora" />
       <app-affiliate-cta />
       <app-ad-slot slot="" />
 
-      <!-- STATS -->
-      <section class="stats" @listStagger>
-        @for (s of stats(); track s.label) {
-          <div class="stat card">
-            <div class="num grad">{{ s.value }}</div>
-            <div class="muted">{{ s.label }}</div>
+      <!-- HOY JUEGAN (predicción + estado en vivo / resultado) -->
+      @if (todayMatches().length) {
+        <section class="block">
+          <div class="head">
+            <h2>📅 Hoy juegan</h2>
+            <a routerLink="/en-vivo" class="chip">Seguir en vivo →</a>
           </div>
-        }
-      </section>
+          <div class="matches" @listStagger>
+            @for (m of todayMatches(); track m.id) {
+              <div class="match card" [class.is-live]="m.status === 'live'">
+                <div class="side">
+                  <span class="flag"><app-flag [code]="teamCode(m.home_team_id)" /></span>
+                  <span class="code">{{ teamCode(m.home_team_id) || m.home_placeholder }}</span>
+                </div>
+                <div class="center">
+                  @if (m.status === 'live') {
+                    <div class="when">
+                      <span class="livetag">🔴 EN VIVO</span>
+                      @if (m.minute != null) { <span class="livemin">{{ m.minute }}'</span> }
+                    </div>
+                    <div class="result grad">{{ m.home_goals ?? 0 }} - {{ m.away_goals ?? 0 }}</div>
+                  } @else if (m.status === 'finished') {
+                    <div class="when">Final</div>
+                    <div class="result">{{ m.home_goals ?? 0 }} - {{ m.away_goals ?? 0 }}</div>
+                  } @else {
+                    <div class="when">{{ formatTime(m.kickoff) }}</div>
+                    @if (pred(m.id); as p) {
+                      <div class="bars" title="Local / Empate / Visitante">
+                        <span class="b home" [style.flex]="p.p_home"></span>
+                        <span class="b draw" [style.flex]="p.p_draw"></span>
+                        <span class="b away" [style.flex]="p.p_away"></span>
+                      </div>
+                      <div class="odds muted">
+                        {{ (p.p_home*100).toFixed(0) }}% · {{ (p.p_draw*100).toFixed(0) }}% · {{ (p.p_away*100).toFixed(0) }}%
+                      </div>
+                    } @else {
+                      <div class="vs">VS</div>
+                    }
+                  }
+                </div>
+                <div class="side right">
+                  <span class="code">{{ teamCode(m.away_team_id) || m.away_placeholder }}</span>
+                  <span class="flag"><app-flag [code]="teamCode(m.away_team_id)" /></span>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
 
       <!-- CONTENDIENTES -->
       <section class="block">
@@ -128,6 +172,19 @@ import { LiveScoreboardComponent } from '../../shared/live-scoreboard/live-score
         }
       </section>
 
+      <!-- DATOS DEL TORNEO -->
+      <section class="block">
+        <div class="head"><h2>📊 El Mundial en datos</h2></div>
+        <section class="stats" @listStagger>
+          @for (s of stats(); track s.label) {
+            <div class="stat card">
+              <div class="num grad">{{ s.value }}</div>
+              <div class="muted">{{ s.label }}</div>
+            </div>
+          }
+        </section>
+      </section>
+
       <section class="block"><app-subscribe /></section>
     </div>
   `,
@@ -173,8 +230,14 @@ import { LiveScoreboardComponent } from '../../shared/live-scoreboard/live-score
       .tname { font-weight: 700; margin-bottom: 8px; }
       .pct { font-family: 'Poppins'; font-weight: 800; font-size: 1.2rem; }
 
+      .live-top { padding-top: 18px; }
+
       .matches { display: flex; flex-direction: column; gap: 10px; }
-      .match { display: flex; align-items: center; padding: 14px 18px; gap: 12px; }
+      .match { display: flex; align-items: center; padding: 14px 18px; gap: 12px; transition: border-color .2s ease; }
+      .match.is-live { border-color: rgba(239, 68, 68, 0.45); }
+      .livetag { color: #fca5a5; font-weight: 700; }
+      .livemin { color: #fecaca; font-weight: 700; margin-left: 4px; }
+      .result { font-family: 'Poppins'; font-weight: 800; font-size: 1.35rem; line-height: 1; }
       .side { display: flex; align-items: center; gap: 10px; flex: 1; }
       .side.right { justify-content: flex-end; }
       .side .flag { font-size: 1.8rem; }
@@ -215,9 +278,31 @@ export class DashboardComponent {
   private predByMatch = computed(() => new Map(this.predictions().map((p) => [p.match_id, p])));
 
   contenders = computed(() => this.sim().slice(0, 6));
+
+  /**
+   * Partidos de hoy por jugar o ya jugados (los EN VIVO se muestran arriba, en
+   * el tablero en directo, para no duplicarlos ni mostrar un marcador desfasado).
+   */
+  todayMatches = computed(() =>
+    this.matches()
+      .filter(
+        (m) =>
+          this.isToday(m.kickoff) &&
+          m.status !== 'live' &&
+          (m.home_team_id || m.home_placeholder),
+      )
+      .sort((a, b) => (a.kickoff ?? '').localeCompare(b.kickoff ?? '')),
+  );
+
+  /** Próximos partidos programados, excluyendo los de hoy (evita duplicar). */
   upcoming = computed(() =>
     this.matches()
-      .filter((m) => m.status === 'scheduled' && (m.home_team_id || m.home_placeholder))
+      .filter(
+        (m) =>
+          m.status === 'scheduled' &&
+          !this.isToday(m.kickoff) &&
+          (m.home_team_id || m.home_placeholder),
+      )
       .slice(0, 6),
   );
 
@@ -262,5 +347,20 @@ export class DashboardComponent {
     if (!iso) return 'Por confirmar';
     const d = new Date(iso);
     return d.toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  /** Solo la hora local (para los partidos de hoy). */
+  formatTime(iso?: string): string {
+    if (!iso) return 'Por confirmar';
+    return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  }
+  private isToday(iso?: string): boolean {
+    if (!iso) return false;
+    const d = new Date(iso);
+    const n = new Date();
+    return (
+      d.getFullYear() === n.getFullYear() &&
+      d.getMonth() === n.getMonth() &&
+      d.getDate() === n.getDate()
+    );
   }
 }

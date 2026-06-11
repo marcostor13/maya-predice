@@ -2,16 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, Input, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { catchError, of, switchMap, timer } from 'rxjs';
+import { catchError, forkJoin, of, switchMap, timer } from 'rxjs';
 
-import { LiveMatch } from '../../core/models';
+import { LiveMatch, Prediction } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { FlagComponent } from '../flag/flag.component';
 
 /**
- * Marcador en vivo: se auto-refresca cada 2 minutos consultando `/matches/live`.
- * Si no hay partidos en vivo no renderiza nada (apto para incrustar en el home).
- * El polling se limpia solo al destruir el componente (`takeUntilDestroyed`).
+ * Marcador en vivo: se auto-refresca cada 2 minutos consultando `/matches/live`
+ * (y las predicciones del modelo para cada partido). Si no hay partidos en vivo
+ * no renderiza nada (apto para incrustar en el home). El polling se limpia solo
+ * al destruir el componente (`takeUntilDestroyed`).
  */
 @Component({
   selector: 'app-live-scoreboard',
@@ -45,6 +46,21 @@ import { FlagComponent } from '../flag/flag.component';
                   <span class="flag"><app-flag [code]="codeOf(m.away_code)" /></span>
                 </div>
               </div>
+              @if (predOf(m); as p) {
+                <div class="pred">
+                  <div class="pred-head muted">Predicción del modelo (1·X·2)</div>
+                  <div class="bars" title="Local / Empate / Visitante">
+                    <span class="b home" [style.flex]="p.p_home"></span>
+                    <span class="b draw" [style.flex]="p.p_draw"></span>
+                    <span class="b away" [style.flex]="p.p_away"></span>
+                  </div>
+                  <div class="pcts">
+                    <span [class.fav]="favors(p) === 'home'">{{ pct(p.p_home) }}%</span>
+                    <span class="draw" [class.fav]="favors(p) === 'draw'">{{ pct(p.p_draw) }}%</span>
+                    <span [class.fav]="favors(p) === 'away'">{{ pct(p.p_away) }}%</span>
+                  </div>
+                </div>
+              }
               @if (m.stage || m.group || m.venue) {
                 <div class="meta">{{ metaLabel(m) }}</div>
               }
@@ -100,6 +116,16 @@ import { FlagComponent } from '../flag/flag.component';
         -webkit-background-clip: text; background-clip: text; color: transparent;
       }
 
+      .pred { display: flex; flex-direction: column; gap: 6px; }
+      .pred-head { font-size: 0.68rem; letter-spacing: 0.03em; text-transform: uppercase; }
+      .bars { display: flex; height: 8px; border-radius: 999px; overflow: hidden; gap: 2px; }
+      .b { display: block; min-width: 2px; border-radius: 999px; }
+      .b.home { background: var(--primary); }
+      .b.draw { background: var(--muted); }
+      .b.away { background: var(--accent); }
+      .pcts { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--muted); }
+      .pcts .fav { color: var(--text); font-weight: 700; }
+
       .meta { font-size: 0.74rem; color: var(--muted); text-align: center; }
 
       @keyframes pulse {
@@ -130,14 +156,37 @@ export class LiveScoreboardComponent {
   private destroyRef = inject(DestroyRef);
 
   matches = signal<LiveMatch[]>([]);
+  private predsById = signal<Map<number, Prediction>>(new Map());
 
   constructor() {
     timer(0, 120_000)
       .pipe(
-        switchMap(() => this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([])))),
+        switchMap(() =>
+          forkJoin({
+            live: this.api.getLiveMatches().pipe(catchError(() => of<LiveMatch[]>([]))),
+            preds: this.api.getPredictions().pipe(catchError(() => of<Prediction[]>([]))),
+          }),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((list) => this.matches.set(list));
+      .subscribe(({ live, preds }) => {
+        this.matches.set(live);
+        this.predsById.set(new Map(preds.map((p) => [p.match_id, p])));
+      });
+  }
+
+  predOf(m: LiveMatch): Prediction | undefined {
+    return this.predsById().get(m.id);
+  }
+
+  /** Resultado más probable según el modelo. */
+  favors(p: Prediction): 'home' | 'draw' | 'away' {
+    const max = Math.max(p.p_home, p.p_draw, p.p_away);
+    return max === p.p_home ? 'home' : max === p.p_away ? 'away' : 'draw';
+  }
+
+  pct(value: number): string {
+    return (value * 100).toFixed(0);
   }
 
   codeOf(code?: string | null): string | undefined {
