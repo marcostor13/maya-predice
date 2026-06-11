@@ -142,7 +142,15 @@ import { AffiliateCtaComponent } from '../../shared/affiliate-cta/affiliate-cta.
       .lead { font-size: 1.05rem; max-width: 560px; }
       .cta { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
       .trophy { font-size: 9rem; position: relative; z-index: 1; margin-left: auto; filter: drop-shadow(0 20px 40px rgba(251,191,36,.3)); }
-      @media (max-width: 820px) { .trophy { display: none; } }
+      @media (max-width: 980px) { .trophy { font-size: 7rem; } }
+      @media (max-width: 820px) {
+        .hero { padding: 26px 0 8px; }
+        .hero-inner { min-height: auto; gap: 0; }
+        .trophy { display: none; }
+        .copy { max-width: 100%; }
+        .orb.a { width: 220px; height: 220px; top: -40px; left: -60px; }
+        .orb.b { width: 200px; height: 200px; }
+      }
 
       .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 10px; }
       .stat { padding: 20px; text-align: center; }
