@@ -19,7 +19,8 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               "src/assets",
-              { "glob": "ads.txt", "input": "src/static", "output": "." }
+              { "glob": "ads.txt", "input": "src/static", "output": "." },
+              { "glob": "robots.txt", "input": "src/static", "output": "." }
             ],
             "styles": ["src/styles.scss"],
             "scripts": []
