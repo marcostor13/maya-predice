@@ -52,15 +52,19 @@ EDITABLE: tuple[SettingSpec, ...] = (
                 min=5, max=1440),
     SettingSpec("enable_live_scores", "bool", "En vivo",
                 "Marcador en vivo activo",
-                "Refresca el marcador (goles/minuto) en in-play, sin recalcular predicciones."),
+                "Refresca el marcador (goles/minuto) in-play, sin recalcular predicciones. "
+                "Requiere allowlistar en Coolify los hosts de las fuentes: "
+                "site.api.espn.com, www.thesportsdb.com, www.google.com."),
     SettingSpec("live_scores_minutes", "int", "En vivo",
                 "Cada cuántos minutos",
-                "Frecuencia de la ingesta del marcador en vivo (aplica tras reiniciar).",
+                "Frecuencia de la ingesta del marcador en vivo (se aplica al guardar).",
                 min=1, max=15),
     SettingSpec("live_source", "str", "En vivo",
                 "Fuente del marcador",
-                "Fuentes live separadas por coma, en orden de prioridad: "
-                "espn,thesportsdb,google,apifootball (cadena de fallback)."),
+                "Fuentes live separadas por coma, en orden de prioridad (cadena de fallback): "
+                "espn,thesportsdb,google,apifootball. Allowlistar en Coolify el host de cada "
+                "fuente usada (espn=site.api.espn.com, google=www.google.com, "
+                "thesportsdb=www.thesportsdb.com)."),
     SettingSpec("apifootball_key", "str", "En vivo",
                 "API key de API-Football",
                 "Clave de api-football.com (x-apisports-key). Déjalo vacío para no cambiarla.",
