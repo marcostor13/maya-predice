@@ -27,12 +27,34 @@ class LiveFixture:
     finished: bool
 
 
+@dataclass(frozen=True)
+class LiveCandidate:
+    """Un partido candidato (probablemente in-play) que el servicio ya resolvió.
+
+    Lo usan las fuentes que no pueden listar "todos los live" por sí solas
+    (p. ej. Google), que necesitan saber qué partidos consultar.
+    """
+
+    home_code: str | None
+    away_code: str | None
+    home_name: str | None
+    away_name: str | None
+    kickoff_date: date | None
+
+
 class LiveProvider(ABC):
     """Interfaz de un proveedor de marcadores en vivo."""
 
     name: str = "base"
 
     @abstractmethod
-    async def fetch_live(self) -> list[LiveFixture]:
-        """Devuelve los partidos actualmente en juego (in-play)."""
+    async def fetch_live(
+        self, candidates: list[LiveCandidate] | None = None
+    ) -> list[LiveFixture]:
+        """Devuelve los partidos actualmente en juego (in-play).
+
+        `candidates` es una pista opcional con los partidos que el servicio cree
+        en juego; las fuentes que listan todo lo ignoran, las que no (Google) lo
+        usan para saber qué consultar.
+        """
         raise NotImplementedError

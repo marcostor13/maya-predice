@@ -164,6 +164,14 @@ cd frontend && npm install && npm start  # http://localhost:4200
       y `SEO.md` (DeepSeek key + `GROWTH_AGENT_ENABLED`, allowlist deepseek/indexnow,
       dominio `mayapredice.site`, `og-cover.png`, Search Console).
 
+- [x] **Marcador en vivo (multi-fuente, gratis)**: `Match.minute`/`live_updated_at`,
+      proveedores ESPN/TheSportsDB/Google(scraping)/API-Football con **cadena de fallback**
+      (`live_source`), job cada 2 min (`enable_live_scores`, **off** por defecto), endpoints
+      `/matches/live` + `/matches/today`, UI `live-scoreboard` (con predicción) + página
+      `/en-vivo` SEO. Verificado: 112 tests + build OK.
+- [ ] Activar live en prod: `ENABLE_LIVE_SCORES=true` + allowlist `site.api.espn.com`,
+      `www.thesportsdb.com`, `www.google.com` (no requiere API de pago).
+
 > **Actualiza esta checklist** conforme avances. Es lo primero que mira Claude.
 
 ## 7. Notas / gotchas
@@ -223,6 +231,13 @@ cd frontend && npm install && npm start  # http://localhost:4200
   al arrancar y al inicio de cada job (los 2 workers convergen). Endpoints
   `GET/POST /admin/settings`; panel ⚙️ Configuración. Los hiperparámetros del modelo NO
   son editables (blindados).
+- **Marcador en vivo.** `app/data/live/` (proveedores) + `services/live_scores.py`. La
+  fuente es una **cadena** en `live_source` (coma = prioridad): `espn` (gratis, sin key,
+  principal), `thesportsdb` (gratis), `google` (scraping HTML best-effort, **frágil** y
+  último recurso; los datacenter pueden recibir CAPTCHA), `apifootball` (solo con key). Se
+  usa el **primer provider que devuelve datos**. El job `live_scores` (cada
+  `live_scores_minutes`=2, flag `enable_live_scores` **off**) solo refresca marcador/minuto
+  (no reentrena). openfootball NO da in-play. Allowlistar los hosts de las fuentes usadas.
 - **Monetización.** Ver `MONETIZATION.md`. (1) **AdSense**: `shared/ad-slot` solo
   carga si hay `adsenseClient` (en `environment*.ts`) + consentimiento de cookies
   (`shared/consent-banner` + `consent.service`); `ads.txt` en `src/static`. (2)

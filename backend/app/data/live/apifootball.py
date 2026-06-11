@@ -12,39 +12,12 @@ Docs: https://www.api-football.com/documentation-v3
 
 from __future__ import annotations
 
-from datetime import date
-
-from app.data.live.base import LiveFixture, LiveProvider
+from app.data.live._mapping import code_for, parse_kickoff_date
+from app.data.live.base import LiveCandidate, LiveFixture, LiveProvider
 from app.data.players._http import get_json
-from app.data.team_mapping import ALIASES, TEAMS, resolve_team
 
 LEAGUE_WORLD_CUP = 1  # id de la Copa Mundial en API-Football
 FINISHED_STATUSES = {"FT", "AET", "PEN"}
-
-# Índice nombre-normalizado -> código (incluye alias del proveedor).
-_NAME_TO_CODE: dict[str, str] = {}
-for _name, (_code, _conf) in TEAMS.items():
-    _NAME_TO_CODE[_name.strip().lower()] = _code
-for _alias, _canonical in ALIASES.items():
-    _resolved = resolve_team(_canonical)
-    if _resolved:
-        _NAME_TO_CODE[_alias.strip().lower()] = _resolved[1]
-
-
-def _code_for(name: str | None) -> str | None:
-    if not name:
-        return None
-    return _NAME_TO_CODE.get(name.strip().lower())
-
-
-def _parse_kickoff_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        # ISO-8601, p. ej. "2026-06-11T19:00:00+00:00".
-        return date.fromisoformat(value[:10])
-    except ValueError:
-        return None
 
 
 class APIFootballLiveProvider(LiveProvider):
@@ -54,7 +27,9 @@ class APIFootballLiveProvider(LiveProvider):
         self.base = (host or "https://v3.football.api-sports.io").rstrip("/")
         self.headers = {"x-apisports-key": api_key}
 
-    async def fetch_live(self) -> list[LiveFixture]:
+    async def fetch_live(
+        self, candidates: list[LiveCandidate] | None = None
+    ) -> list[LiveFixture]:
         data = await get_json(
             f"{self.base}/fixtures", headers=self.headers, params={"live": "all"}
         )
@@ -82,11 +57,11 @@ class APIFootballLiveProvider(LiveProvider):
             away_name = away.get("name")
             fixtures.append(
                 LiveFixture(
-                    home_code=_code_for(home_name),
-                    away_code=_code_for(away_name),
+                    home_code=code_for(home_name),
+                    away_code=code_for(away_name),
                     home_name=home_name,
                     away_name=away_name,
-                    kickoff_date=_parse_kickoff_date(fixture.get("date")),
+                    kickoff_date=parse_kickoff_date(fixture.get("date")),
                     minute=status.get("elapsed"),
                     status=short,
                     home_goals=goals.get("home"),

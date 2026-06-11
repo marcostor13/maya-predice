@@ -118,10 +118,12 @@ class Settings(BaseSettings):
 
     # --- Marcador en vivo (in-play, ligero: solo actualiza el marcador) ---
     # Independiente de `enable_live_updates`: este job NO recalcula predicciones,
-    # solo refresca goles/minuto cada `live_scores_minutes`. Fuente: apifootball
-    # (reusa `apifootball_key`/`apifootball_host`).
+    # solo refresca goles/minuto cada `live_scores_minutes`. Multi-fuente con
+    # cadena de fallback (orden = prioridad): espn (gratis, sin key) →
+    # thesportsdb (gratis, key de prueba "3") → google (scraping, último recurso).
+    # Añade ",apifootball" al final si configuras `apifootball_key`.
     enable_live_scores: bool = False
-    live_source: str = ""  # "apifootball" para activarlo
+    live_source: str = "espn,thesportsdb,google"
     live_scores_minutes: int = 2
 
     # --- Aprendizaje continuo (cron horario) ---

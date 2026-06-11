@@ -18,7 +18,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.data.live.apifootball import APIFootballLiveProvider
-from app.data.live.base import LiveFixture, LiveProvider
+from app.data.live.base import LiveCandidate, LiveFixture, LiveProvider
+from app.data.live.espn import ESPNLiveProvider
+from app.data.live.google import GoogleScrapeLiveProvider
+from app.data.live.thesportsdb import TheSportsDBLiveProvider
 from app.models.match import Match, MatchStatus
 from app.models.team import Team
 from app.services.app_settings import apply_overrides
@@ -30,12 +33,31 @@ _DATE_TOLERANCE_DAYS = 1
 # Un partido LIVE que ya no aparece en el feed y cuyo kickoff fue hace más de esto
 # se marca FINISHED por seguridad (un partido dura ~120 min como mucho).
 _STALE_LIVE_MINUTES = 150
+# Ventana en la que un partido se considera "probablemente in-play" (para Google).
+_INPLAY_WINDOW_MINUTES = 150
 
 
-def _build_provider() -> LiveProvider | None:
-    if settings.live_source != "apifootball" or not settings.apifootball_key:
-        return None
-    return APIFootballLiveProvider(settings.apifootball_key, settings.apifootball_host)
+def _build_providers() -> list[LiveProvider]:
+    """Construye la cadena de proveedores live según `live_source` (orden = prioridad)."""
+    providers: list[LiveProvider] = []
+    for raw in settings.live_source.split(","):
+        token = raw.strip().lower()
+        if not token:
+            continue
+        if token == "espn":
+            providers.append(ESPNLiveProvider())
+        elif token == "thesportsdb":
+            providers.append(TheSportsDBLiveProvider(settings.thesportsdb_key))
+        elif token == "google":
+            providers.append(GoogleScrapeLiveProvider())
+        elif token == "apifootball" and settings.apifootball_key:
+            providers.append(
+                APIFootballLiveProvider(
+                    settings.apifootball_key, settings.apifootball_host
+                )
+            )
+        # tokens desconocidos: se ignoran
+    return providers
 
 
 def _kickoff_date(match: Match) -> date | None:
@@ -57,15 +79,9 @@ async def sync_live_scores(db: AsyncSession) -> dict:
     if not settings.enable_live_scores:
         return {"updated": 0, "live": 0, "skipped": True}
 
-    provider = _build_provider()
-    if provider is None:
+    providers = _build_providers()
+    if not providers:
         return {"updated": 0, "live": 0, "skipped": True}
-
-    try:
-        fixtures: list[LiveFixture] = await provider.fetch_live()
-    except Exception as exc:  # noqa: BLE001 — una fuente caída no debe tumbar el ciclo
-        logger.warning("La ingesta de marcadores en vivo falló: %s", exc)
-        return {"updated": 0, "live": 0, "error": str(exc)}
 
     now = datetime.now(UTC)
     today = now.date()
@@ -86,6 +102,50 @@ async def sync_live_scores(db: AsyncSession) -> dict:
         home = teams.get(match.home_team_id) if match.home_team_id else None
         away = teams.get(match.away_team_id) if match.away_team_id else None
         return (home.code if home else None, away.code if away else None)
+
+    def _names(match: Match) -> tuple[str | None, str | None]:
+        home = teams.get(match.home_team_id) if match.home_team_id else None
+        away = teams.get(match.away_team_id) if match.away_team_id else None
+        return (home.name if home else None, away.name if away else None)
+
+    # Sublista "probablemente in-play" para las fuentes que necesitan candidatos
+    # (Google): kickoff pasado hace < 150 min y estado scheduled/live.
+    inplay_cutoff = now - timedelta(minutes=_INPLAY_WINDOW_MINUTES)
+    candidates: list[LiveCandidate] = []
+    for match in matches:
+        if match.status not in (MatchStatus.SCHEDULED, MatchStatus.LIVE):
+            continue
+        if match.kickoff is None:
+            continue
+        ko = match.kickoff.astimezone(UTC)
+        if not (inplay_cutoff <= ko <= now):
+            continue
+        hc, ac = _codes(match)
+        hn, an = _names(match)
+        candidates.append(
+            LiveCandidate(
+                home_code=hc,
+                away_code=ac,
+                home_name=hn,
+                away_name=an,
+                kickoff_date=_kickoff_date(match),
+            )
+        )
+
+    # Cadena de fallback: usa el primer proveedor que devuelva algo.
+    fixtures: list[LiveFixture] = []
+    source: str | None = None
+    for provider in providers:
+        try:
+            result = await provider.fetch_live(candidates)
+        except Exception as exc:  # noqa: BLE001 — una fuente caída no tumba el ciclo
+            logger.warning("Fuente live '%s' falló: %s", provider.name, exc)
+            continue
+        if result:
+            fixtures = result
+            source = provider.name
+            logger.info("Marcador en vivo servido por '%s' (%s fixtures).", source, len(result))
+            break
 
     updated = 0
     live = 0
@@ -144,4 +204,4 @@ async def sync_live_scores(db: AsyncSession) -> dict:
         live,
         finished,
     )
-    return {"updated": updated, "live": live, "finished": finished}
+    return {"updated": updated, "live": live, "finished": finished, "source": source}

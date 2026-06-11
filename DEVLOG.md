@@ -848,3 +848,44 @@ backend **101 tests** en verde + ruff limpio; migración encadena en un solo hea
 `api.deepseek.com` e `api.indexnow.org`; Netlify → dominio `mayapredice.site`; Search
 Console → verificar + enviar sitemap; subir `assets/og-cover.png` (1200×630);
 **rotar** la API key de DeepSeek.
+
+---
+
+## Entrada 024 — Marcador en vivo (multi-fuente) + UX del home + GA al head
+**Fecha:** 2026-06-11 · **Commit:** `pendiente`
+
+**Objetivo.** Mostrar el **marcador en vivo** del Mundial, que se actualice cada 2 min,
+con SEO para captar las búsquedas "en vivo / en directo"; y mejorar la UX del home para
+retención. Además se movió Google Analytics al inicio del `<head>`.
+
+**Backend — marcador en vivo.**
+- `Match.minute` + `live_updated_at` (migración `b1c2d3e4f5a6`).
+- Proveedores live (`app/data/live/`) con interfaz `LiveProvider.fetch_live(candidates)`:
+  **ESPN** (`fifa.world/scoreboard`, gratis sin key, fuente principal), **TheSportsDB**
+  (livescore, gratis), **Google** (scraping HTML best-effort, último recurso, usa
+  candidatos in-play, throttle + try/except por petición) y **API-Football** (si hay key).
+- `services/live_scores.sync_live_scores`: **cadena con fallback** (`live_source` por
+  comas = orden de prioridad; usa el primer provider que devuelve datos), casa fixtures
+  con `Match` por (códigos + fecha ±1 día), actualiza marcador/minuto/estado, cierra los
+  LIVE obsoletos. **Ligero** (no reentrena). Job de scheduler `live_scores` cada
+  `live_scores_minutes` (=2) si `enable_live_scores` (**off** por defecto). CLI
+  `python -m app.data.live_sync`.
+- Endpoints públicos `GET /api/v1/matches/live` y `/matches/today` (con código/nombre
+  resueltos para SEO). Default `live_source="espn,thesportsdb,google"` (todo gratis).
+
+**Frontend — UI en vivo + SEO + UX.**
+- `shared/live-scoreboard`: refresco cada 2 min, badge "🔴 EN VIVO + minuto" pulsante,
+  marcador grande y **predicción 1X2 del modelo** por partido. Se auto-oculta sin live.
+- Página **`/en-vivo`** (SEO: "Resultados en vivo del Mundial 2026"), título dinámico
+  cuando hay un partido en curso, partidos de hoy; link en navbar + sitemap.
+- **Home reordenado por retención**: En vivo (arriba del hero) → Hero → 📅 Hoy juegan
+  (con predicción/estado) → 🔥 Favoritos → Próximos → 📊 Datos del torneo → Suscripción.
+- **GA4** movido a justo después de `<head>`. Banner de cookies legible (fondo opaco).
+  Responsive del hero afinado.
+
+**Verificación.** Backend **112 tests** + ruff limpio; `npm run build` OK.
+
+**Acción del usuario (para activar el marcador en vivo, gratis).** En Coolify:
+`ENABLE_LIVE_SCORES=true` (y opcional `LIVE_SCORES_MINUTES=2`, `LIVE_SOURCE=espn,thesportsdb,google`);
+**allowlist** de `site.api.espn.com`, `www.thesportsdb.com` y `www.google.com`. No requiere
+ninguna API de pago. (Con `APIFOOTBALL_KEY` se puede añadir `,apifootball` a la cadena.)

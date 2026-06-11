@@ -20,7 +20,7 @@ import app.services.live_scores as live_scores
 from app.api.endpoints.matches import list_live_matches, list_today_matches
 from app.core.config import settings
 from app.core.database import Base
-from app.data.live.base import LiveFixture
+from app.data.live.base import LiveCandidate, LiveFixture
 from app.models.match import Match, MatchStage, MatchStatus
 from app.models.team import Team
 from app.models.tournament import Tournament
@@ -59,10 +59,13 @@ async def _seed_match(db: AsyncSession, *, status: MatchStatus = MatchStatus.SCH
 
 
 class _FakeProvider:
-    def __init__(self, fixtures: list[LiveFixture]):
+    def __init__(self, fixtures: list[LiveFixture], name: str = "fake"):
         self._fixtures = fixtures
+        self.name = name
 
-    async def fetch_live(self) -> list[LiveFixture]:
+    async def fetch_live(
+        self, candidates: list[LiveCandidate] | None = None
+    ) -> list[LiveFixture]:
         return self._fixtures
 
 
@@ -87,11 +90,13 @@ def test_live_update_sets_match_live(monkeypatch):
         _set("live_source", "apifootball")
         _set("apifootball_key", "dummy")
         monkeypatch.setattr(live_scores, "apply_overrides", _noop_apply)
-        monkeypatch.setattr(live_scores, "_build_provider", lambda: _FakeProvider([fx]))
+        monkeypatch.setattr(
+            live_scores, "_build_providers", lambda: [_FakeProvider([fx])]
+        )
         try:
             async with session_maker() as db:
                 result = await live_scores.sync_live_scores(db)
-            assert result == {"updated": 1, "live": 1, "finished": 0}
+            assert result == {"updated": 1, "live": 1, "finished": 0, "source": "fake"}
             async with session_maker() as db:
                 m = await db.get(Match, match_id)
                 assert m.status == MatchStatus.LIVE
@@ -161,7 +166,42 @@ async def _noop_apply(_db) -> None:
     return None
 
 
+def test_fallback_uses_second_provider_when_first_empty(monkeypatch):
+    async def scenario():
+        session_maker = await _setup()
+        async with session_maker() as db:
+            match = await _seed_match(db)
+            await db.commit()
+            match_id = match.id
+
+        fx = LiveFixture(
+            home_code="MEX", away_code="RSA", home_name="Mexico", away_name="South Africa",
+            kickoff_date=datetime.now(UTC).date(), minute=72, status="2H",
+            home_goals=2, away_goals=2, finished=False,
+        )
+        empty = _FakeProvider([], name="espn")
+        second = _FakeProvider([fx], name="thesportsdb")
+        _set("enable_live_scores", True)
+        _set("live_source", "espn,thesportsdb")
+        monkeypatch.setattr(live_scores, "apply_overrides", _noop_apply)
+        monkeypatch.setattr(live_scores, "_build_providers", lambda: [empty, second])
+        try:
+            async with session_maker() as db:
+                result = await live_scores.sync_live_scores(db)
+            assert result["source"] == "thesportsdb"
+            assert result["updated"] == 1 and result["live"] == 1
+            async with session_maker() as db:
+                m = await db.get(Match, match_id)
+                assert m.status == MatchStatus.LIVE
+                assert m.minute == 72
+                assert m.home_goals == 2 and m.away_goals == 2
+        finally:
+            _reset()
+
+    asyncio.run(scenario())
+
+
 def _reset() -> None:
     _set("enable_live_scores", False)
-    _set("live_source", "")
+    _set("live_source", "espn,thesportsdb,google")
     _set("apifootball_key", "")

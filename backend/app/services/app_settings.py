@@ -59,7 +59,8 @@ EDITABLE: tuple[SettingSpec, ...] = (
                 min=1, max=15),
     SettingSpec("live_source", "str", "En vivo",
                 "Fuente del marcador",
-                "Proveedor de marcadores en vivo. Usa 'apifootball' para activarlo."),
+                "Fuentes live separadas por coma, en orden de prioridad: "
+                "espn,thesportsdb,google,apifootball (cadena de fallback)."),
     SettingSpec("apifootball_key", "str", "En vivo",
                 "API key de API-Football",
                 "Clave de api-football.com (x-apisports-key). Déjalo vacío para no cambiarla.",
