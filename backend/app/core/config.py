@@ -116,6 +116,14 @@ class Settings(BaseSettings):
     enable_live_updates: bool = True
     live_poll_minutes: int = 60  # cada cuánto se reingieren resultados durante el torneo
 
+    # --- Marcador en vivo (in-play, ligero: solo actualiza el marcador) ---
+    # Independiente de `enable_live_updates`: este job NO recalcula predicciones,
+    # solo refresca goles/minuto cada `live_scores_minutes`. Fuente: apifootball
+    # (reusa `apifootball_key`/`apifootball_host`).
+    enable_live_scores: bool = False
+    live_source: str = ""  # "apifootball" para activarlo
+    live_scores_minutes: int = 2
+
     # --- Aprendizaje continuo (cron horario) ---
     # Cada hora recopila de todas las fuentes (plantillas/lesiones/fotos + cuotas +
     # resultados), reentrena el modelo y regenera predicciones y simulación. Así el

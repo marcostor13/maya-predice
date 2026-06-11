@@ -42,6 +42,30 @@ export interface Match {
   status: MatchStatus;
   home_goals?: number;
   away_goals?: number;
+  minute?: number;
+}
+
+/**
+ * Partido con datos en vivo (marcador, minuto). Devuelto por los endpoints
+ * `/matches/live` y `/matches/today`, ya resuelto con códigos/nombres de
+ * selección para pintar directamente en la UI.
+ */
+export interface LiveMatch {
+  id: number;
+  home_code?: string | null;
+  home_name?: string | null;
+  away_code?: string | null;
+  away_name?: string | null;
+  home_goals?: number | null;
+  away_goals?: number | null;
+  minute?: number | null;
+  status: MatchStatus;
+  kickoff?: string | null;
+  group?: string | null;
+  stage: string;
+  venue?: string | null;
+  home_placeholder?: string | null;
+  away_placeholder?: string | null;
 }
 
 export interface ScorelineProb {

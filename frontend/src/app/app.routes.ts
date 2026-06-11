@@ -17,6 +17,19 @@ export const routes: Routes = [
       import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
+    path: 'en-vivo',
+    data: {
+      seo: {
+        title: 'Resultados en vivo del Mundial 2026 · Marcadores en directo',
+        description:
+          'Sigue los partidos del Mundial 2026 EN VIVO: marcador en directo minuto a minuto, resultados de hoy y predicciones del modelo. Se actualiza solo cada 2 minutos.',
+        path: '/en-vivo',
+      } satisfies SeoData,
+    },
+    loadComponent: () =>
+      import('./features/live/live.component').then((m) => m.LiveComponent),
+  },
+  {
     path: 'fixture',
     data: {
       seo: {

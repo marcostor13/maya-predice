@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.services.app_settings import apply_overrides
 from app.services.jobs import JobInProgress, start_job
+from app.services.live_scores import sync_live_scores
 from app.services.notifications import notify_subscribers
 from app.services.recompute import recompute_pipeline
 from app.services.squad_service import build_player_providers, sync_squads
@@ -119,6 +120,22 @@ async def run_live_update() -> None:
     await _trigger_recompute("live", force=False)
 
 
+async def run_live_scores() -> None:
+    """Marcador en vivo (ligero, cada ~2 min): refresca goles/minuto de los partidos.
+
+    NO recalcula predicciones ni reentrena; de eso se encargan los demás jobs.
+    Abre su propia sesión, hace commit dentro del servicio y nunca tumba el ciclo.
+    """
+    async with AsyncSessionLocal() as db:
+        try:
+            summary = await sync_live_scores(db)
+            if not summary.get("skipped"):
+                logger.info("Marcador en vivo: %s", summary)
+        except Exception:
+            await db.rollback()
+            logger.exception("La ingesta del marcador en vivo falló.")
+
+
 async def run_growth_agent() -> None:
     """Agente de crecimiento: genera ideas (DeepSeek), actúa y envía el digest al dueño.
 
@@ -169,6 +186,14 @@ def start_scheduler() -> None:
             replace_existing=True,
             max_instances=1,
         )
+    if settings.enable_live_scores:
+        _scheduler.add_job(
+            run_live_scores,
+            IntervalTrigger(minutes=settings.live_scores_minutes),
+            id="live_scores",
+            replace_existing=True,
+            max_instances=1,
+        )
     if settings.growth_agent_enabled:
         _scheduler.add_job(
             run_growth_agent,
@@ -180,13 +205,16 @@ def start_scheduler() -> None:
     _scheduler.start()
     logger.info(
         "Scheduler activo: diario %02d:%02d UTC; aprendizaje horario cada %s min (%s); "
-        "en vivo cada %s min (%s); crecimiento cada %s min (%s).",
+        "recálculo en vivo cada %s min (%s); marcador en vivo cada %s min (%s); "
+        "crecimiento cada %s min (%s).",
         settings.sync_hour_utc,
         settings.sync_minute_utc,
         settings.hourly_refresh_minutes,
         "on" if settings.hourly_refresh_enabled else "off",
         settings.live_poll_minutes,
         "on" if settings.enable_live_updates else "off",
+        settings.live_scores_minutes,
+        "on" if settings.enable_live_scores else "off",
         settings.growth_agent_minutes,
         "on" if settings.growth_agent_enabled else "off",
     )

@@ -10,11 +10,12 @@ import { fadeIn, listStagger } from '../../core/util/animations';
 import { SubscribeComponent } from '../../shared/subscribe/subscribe.component';
 import { AdSlotComponent } from '../../shared/ad-slot/ad-slot.component';
 import { AffiliateCtaComponent } from '../../shared/affiliate-cta/affiliate-cta.component';
+import { LiveScoreboardComponent } from '../../shared/live-scoreboard/live-scoreboard.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent, AdSlotComponent, AffiliateCtaComponent],
+  imports: [CommonModule, RouterLink, SubscribeComponent, FlagComponent, AdSlotComponent, AffiliateCtaComponent, LiveScoreboardComponent],
   animations: [fadeIn, listStagger],
   template: `
     <!-- HERO -->
@@ -39,6 +40,7 @@ import { AffiliateCtaComponent } from '../../shared/affiliate-cta/affiliate-cta.
     </section>
 
     <div class="container">
+      <app-live-scoreboard title="🔴 En vivo ahora" />
       <app-affiliate-cta />
       <app-ad-slot slot="" />
 

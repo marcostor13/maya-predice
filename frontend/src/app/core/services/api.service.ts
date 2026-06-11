@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { Match, Prediction, Simulation, Squad, Team } from '../models';
+import { LiveMatch, Match, Prediction, Simulation, Squad, Team } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -24,6 +24,15 @@ export class ApiService {
 
   getMatch(id: number): Observable<Match> {
     return this.http.get<Match>(`${this.base}/matches/${id}`);
+  }
+
+  // --- Live ---
+  getLiveMatches(): Observable<LiveMatch[]> {
+    return this.http.get<LiveMatch[]>(`${this.base}/matches/live`);
+  }
+
+  getTodayMatches(): Observable<LiveMatch[]> {
+    return this.http.get<LiveMatch[]>(`${this.base}/matches/today`);
   }
 
   // --- Predictions ---

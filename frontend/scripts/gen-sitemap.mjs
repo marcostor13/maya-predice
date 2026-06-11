@@ -10,6 +10,7 @@ const OUT = join(process.cwd(), 'dist', 'maya-predice', 'browser', 'sitemap.xml'
 
 const staticRoutes = [
   { loc: '/', priority: '1.0', changefreq: 'hourly' },
+  { loc: '/en-vivo', priority: '0.9', changefreq: 'always' },
   { loc: '/fixture', priority: '0.9', changefreq: 'hourly' },
   { loc: '/equipos', priority: '0.8', changefreq: 'daily' },
   { loc: '/simulacion', priority: '0.9', changefreq: 'hourly' },

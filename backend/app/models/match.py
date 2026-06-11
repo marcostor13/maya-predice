@@ -52,6 +52,10 @@ class Match(Base):
     home_goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Marcador en vivo (in-play): minuto de juego y momento de la última actualización.
+    minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    live_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     tournament = relationship("Tournament", back_populates="matches")
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])

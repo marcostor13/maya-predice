@@ -36,4 +36,26 @@ class MatchRead(MatchBase):
     status: MatchStatus
     home_goals: int | None = None
     away_goals: int | None = None
+    minute: int | None = None
+    live_updated_at: datetime | None = None
     venue_detail: VenueDetail | None = None
+
+
+class LiveMatchRead(BaseModel):
+    """Vista pública del marcador en vivo / del día (códigos y nombres resueltos)."""
+
+    id: int
+    home_code: str | None = None
+    home_name: str | None = None
+    away_code: str | None = None
+    away_name: str | None = None
+    home_goals: int | None = None
+    away_goals: int | None = None
+    minute: int | None = None
+    status: MatchStatus
+    kickoff: datetime | None = None
+    group: str | None = None
+    stage: MatchStage = MatchStage.GROUP
+    venue: str | None = None
+    home_placeholder: str | None = None
+    away_placeholder: str | None = None

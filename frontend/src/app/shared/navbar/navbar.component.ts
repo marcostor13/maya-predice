@@ -28,6 +28,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         <!-- Enlaces -->
         <div class="links" [class.show]="open()">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="close()">Inicio</a>
+          <a routerLink="/en-vivo" routerLinkActive="active" class="live" (click)="close()">🔴 En vivo</a>
           <a routerLink="/fixture" routerLinkActive="active" (click)="close()">Fixture</a>
           <a routerLink="/equipos" routerLinkActive="active" (click)="close()">Equipos</a>
           <a routerLink="/simulacion" routerLinkActive="active" (click)="close()">Simulación</a>
@@ -55,6 +56,9 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       }
       .links a:hover { color: var(--text); background: var(--surface); }
       .links a.active { color: #04241d; background: linear-gradient(135deg, var(--primary), var(--primary-2)); }
+      .links a.live { color: #fca5a5; }
+      .links a.live:hover { color: #fecaca; background: rgba(239, 68, 68, 0.12); }
+      .links a.live.active { color: #fff; background: linear-gradient(135deg, #ef4444, #f97316); }
 
       /* Hamburguesa: oculta en escritorio */
       .burger {
