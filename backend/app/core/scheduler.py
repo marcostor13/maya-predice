@@ -119,6 +119,28 @@ async def run_live_update() -> None:
     await _trigger_recompute("live", force=False)
 
 
+async def run_growth_agent() -> None:
+    """Agente de crecimiento: genera ideas (DeepSeek), actúa y envía el digest al dueño.
+
+    Corre **serializado** (un job a la vez, vía `start_job`) con su propia sesión. Si
+    ya hay un trabajo en curso, se omite este ciclo (el siguiente lo recoge)."""
+    await _refresh_overrides()
+    if not settings.growth_agent_enabled:
+        return
+    from app.services.growth.agent import run_growth_cycle
+
+    async with AsyncSessionLocal() as db:
+        try:
+            await start_job(
+                db, "growth", lambda s: run_growth_cycle(s, trigger="scheduled"), trigger="growth"
+            )
+        except JobInProgress:
+            logger.info("Agente de crecimiento omitido: ya hay un trabajo en curso.")
+        except Exception:
+            await db.rollback()
+            logger.exception("No se pudo lanzar el agente de crecimiento.")
+
+
 def start_scheduler() -> None:
     global _scheduler
     if not settings.enable_scheduler or _scheduler is not None:
@@ -147,16 +169,26 @@ def start_scheduler() -> None:
             replace_existing=True,
             max_instances=1,
         )
+    if settings.growth_agent_enabled:
+        _scheduler.add_job(
+            run_growth_agent,
+            IntervalTrigger(minutes=settings.growth_agent_minutes),
+            id="growth_agent",
+            replace_existing=True,
+            max_instances=1,
+        )
     _scheduler.start()
     logger.info(
         "Scheduler activo: diario %02d:%02d UTC; aprendizaje horario cada %s min (%s); "
-        "en vivo cada %s min (%s).",
+        "en vivo cada %s min (%s); crecimiento cada %s min (%s).",
         settings.sync_hour_utc,
         settings.sync_minute_utc,
         settings.hourly_refresh_minutes,
         "on" if settings.hourly_refresh_enabled else "off",
         settings.live_poll_minutes,
         "on" if settings.enable_live_updates else "off",
+        settings.growth_agent_minutes,
+        "on" if settings.growth_agent_enabled else "off",
     )
 
 

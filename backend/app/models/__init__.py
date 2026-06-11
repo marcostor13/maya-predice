@@ -3,6 +3,7 @@
 from app.models.admin_user import AdminUser
 from app.models.app_setting import AppSetting
 from app.models.cache import ApiCache
+from app.models.growth import GrowthInsight, GrowthRun
 from app.models.job import JobRun
 from app.models.match import Match, MatchStage, MatchStatus
 from app.models.prediction import Prediction
@@ -26,6 +27,8 @@ __all__ = [
     "AppSetting",
     "Coach",
     "DataChange",
+    "GrowthInsight",
+    "GrowthRun",
     "JobRun",
     "Match",
     "MatchStage",

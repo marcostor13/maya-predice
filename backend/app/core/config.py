@@ -126,6 +126,20 @@ class Settings(BaseSettings):
     # Carga inicial automática al arrancar (solo si la base está vacía).
     enable_bootstrap: bool = True
 
+    # --- Agente de crecimiento (growth) ---
+    # Cron cada `growth_agent_minutes` que usa DeepSeek (OpenAI-compatible) para
+    # generar ideas de promoción/SEO/contenido/monetización, ejecuta acciones
+    # automáticas seguras (p. ej. ping a IndexNow) y envía un digest al dueño.
+    # ARRANCA APAGADO por defecto; se activa con GROWTH_AGENT_ENABLED=true + key.
+    deepseek_api_key: str = ""  # SECRETO; solo se lee del entorno/overrides
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+    growth_agent_enabled: bool = False
+    growth_agent_minutes: int = 120
+    growth_report_email: str = "marcostor13@gmail.com"
+    public_site_url: str = "https://mayapredice.site"
+    indexnow_key: str = ""  # SECRETO; clave de IndexNow (vacío = no se hace ping)
+
     # --- Monetización (afiliados) ---
     # Enlace de afiliado (p. ej. casa de apuestas) mostrado como CTA. Editable
     # desde el panel admin. Público (no es secreto). Incluye su disclaimer +18.

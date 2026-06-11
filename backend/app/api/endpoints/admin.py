@@ -258,6 +258,61 @@ async def admin_bootstrap():
     return {"ok": True, "message": "Carga inicial ejecutada (partidos, modelo, predicciones, simulación, plantillas)."}
 
 
+@router.post("/growth/run")
+async def admin_growth_run(db: AsyncSession = Depends(get_db)):
+    """Lanza un ciclo del agente de crecimiento en **segundo plano** y responde al instante."""
+    from app.services.growth.agent import run_growth_cycle
+    from app.services.jobs import JobInProgress, job_to_dict, start_job
+
+    async def work(session):
+        return await run_growth_cycle(session, trigger="admin")
+
+    try:
+        job = await start_job(db, "growth", work, trigger="growth")
+    except JobInProgress as exc:
+        return {"ok": True, "started": False, "job": job_to_dict(exc.job)}
+    return {"ok": True, "started": True, "job": job_to_dict(job)}
+
+
+@router.get("/growth")
+async def admin_growth(db: AsyncSession = Depends(get_db)):
+    """Últimas ejecuciones del agente de crecimiento con sus ideas."""
+    from sqlalchemy.orm import selectinload
+
+    from app.models.growth import GrowthRun
+    from app.schemas.growth import GrowthRunRead
+
+    runs = (
+        await db.execute(
+            select(GrowthRun)
+            .options(selectinload(GrowthRun.insights))
+            .order_by(GrowthRun.id.desc())
+            .limit(10)
+        )
+    ).scalars().all()
+    return {"runs": [GrowthRunRead.model_validate(r).model_dump() for r in runs]}
+
+
+@router.post("/growth/insight/{insight_id}")
+async def admin_growth_insight(
+    insight_id: int, payload: dict, db: AsyncSession = Depends(get_db)
+):
+    """Aprueba/descarta una idea: cambia su estado (new/emailed/approved/done/dismissed)."""
+    from app.models.growth import GrowthInsight
+
+    allowed = {"new", "emailed", "approved", "done", "dismissed"}
+    new_status = str((payload or {}).get("status", "")).strip().lower()
+    if new_status not in allowed:
+        raise HTTPException(status_code=422, detail=f"Estado inválido. Permitidos: {sorted(allowed)}.")
+
+    insight = await db.get(GrowthInsight, insight_id)
+    if insight is None:
+        raise HTTPException(status_code=404, detail="Idea no encontrada.")
+    insight.status = new_status
+    await db.commit()
+    return {"ok": True, "id": insight_id, "status": new_status}
+
+
 @router.get("/backtest")
 async def admin_backtest():
     from app.services.prediction.backtest import run_backtest

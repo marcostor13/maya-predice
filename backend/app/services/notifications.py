@@ -10,6 +10,7 @@ Si no está configurado, no envía (degradación silenciosa).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from email.message import EmailMessage
 
@@ -184,6 +185,47 @@ async def send_digest(
 
     logger.info("Email enviado a %s suscriptores.", sent)
     return sent
+
+
+async def send_growth_report(subject: str, html_body: str, to_email: str) -> bool:
+    """Envía UN email (el informe del agente de crecimiento) al dueño por SMTP.
+
+    Reutiliza el mismo patrón de conexión que `send_digest`. Si SMTP no está
+    configurado, degrada en silencio (log warning) y devuelve False sin romper.
+    """
+    if not to_email:
+        logger.warning("Sin destinatario para el informe de crecimiento; no se envía.")
+        return False
+    if not (settings.smtp_host and settings.smtp_from):
+        logger.warning("SMTP no configurado; no se envía el informe de crecimiento.")
+        return False
+
+    smtp = aiosmtplib.SMTP(
+        hostname=settings.smtp_host,
+        port=settings.smtp_port,
+        start_tls=settings.smtp_start_tls,
+        use_tls=settings.smtp_use_tls,
+    )
+    try:
+        await smtp.connect()
+        if settings.smtp_user:
+            await smtp.login(settings.smtp_user, settings.smtp_password)
+        msg = EmailMessage()
+        msg["From"] = settings.smtp_from
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content("Activa el HTML para ver el informe del agente de crecimiento.")
+        msg.add_alternative(html_body, subtype="html")
+        await smtp.send_message(msg)
+    except (aiosmtplib.SMTPException, OSError) as exc:
+        logger.warning("No se pudo enviar el informe de crecimiento: %s", exc)
+        return False
+    finally:
+        with contextlib.suppress(aiosmtplib.SMTPException, OSError):
+            await smtp.quit()
+
+    logger.info("Informe de crecimiento enviado a %s.", to_email)
+    return True
 
 
 async def notify_subscribers(db: AsyncSession, *, only_with_results: bool = True) -> int:
