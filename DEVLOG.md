@@ -795,3 +795,56 @@ reiniciar el backend (o en el worker que atendió el guardado).
 **Acción del usuario.** (1) Crear cuenta AdSense y pegar el `pub-id` en
 `environment*.ts` + `ads.txt`. (2) Alta en un programa de afiliados; pegar la URL en
 el panel y activar. (3) Revisar la regulación de juego del país objetivo.
+
+---
+
+## Entrada 023 — SEO + Google Analytics + agente de crecimiento (DeepSeek)
+**Fecha:** 2026-06-11 · **Commit:** `pendiente`
+
+**Objetivo.** (1) Optimizar SEO e indexar en Google; (2) Google Analytics; (3) un
+cron cada 2 h que investigue y proponga cómo promocionar y monetizar mejor el sitio,
+de forma automática y organizada, avisando por email cuando haga falta configurar algo.
+Dominio público de producción: **mayapredice.site**.
+
+**Qué se implementó (Fase A — frontend, en producción).**
+- **`index.html`**: meta description, `canonical`, Open Graph, Twitter Card,
+  `theme-color`, `robots`, JSON-LD (`WebSite` + `SportsEvent` Mundial 2026) y hueco
+  para el meta de verificación de Search Console.
+- **Google Analytics 4** (`G-8KRF0P5NZJ`) con **Consent Mode v2**: denegado por
+  defecto; concedido al aceptar cookies (`ConsentService` propaga el consent a gtag).
+- **`SeoService`** + `data.seo` por ruta (título/description/canonical/OG por página)
+  vía listener de router en `AppComponent`.
+- **`robots.txt`** (allow + `Sitemap:`, `Disallow: /admin`) y **`sitemap.xml`**
+  generado en build (`scripts/gen-sitemap.mjs`: rutas estáticas + 48 equipos desde la
+  API con fallback). `angular.json` copia `robots.txt`.
+
+**Qué se implementó (Fase C — backend, apagado por defecto).**
+- **Agente de crecimiento** (`services/growth/`): cliente DeepSeek (httpx, API
+  OpenAI-compatible), IndexNow, y `run_growth_cycle` → reúne contexto del sitio +
+  **historial de ideas previas** (se "entrena"/itera y evita repetir) → pide a DeepSeek
+  ideas de SEO/promoción/contenido/monetización en JSON → las persiste
+  (`GrowthRun`/`GrowthInsight`, migración `a1b2c3d4e5f6`) → ejecuta acciones
+  automáticas seguras (ping IndexNow) → envía **email-digest** al dueño.
+- **Regla dura:** las ideas de **monetización** SIEMPRE requieren aprobación (no se
+  ejecutan solas; van al email para tu OK). Si falta `DEEPSEEK_API_KEY`, el ciclo
+  termina y **te avisa por email**.
+- **Scheduler:** job `growth_agent` cada `GROWTH_AGENT_MINUTES` (=120) si
+  `GROWTH_AGENT_ENABLED` (off). Reprogramable desde el panel. CLI `python -m app.data.grow`.
+- Ajustes editables (grupo "Crecimiento"; keys como secreto), endpoints
+  `/admin/growth*`, `notifications.send_growth_report`.
+
+**Fase B — Prerender/SSG: pendiente.** Se intentó el prerender estático de Angular 18,
+pero el extractor de rutas del builder montaba la plataforma de navegador (DOCUMENT
+global) en este setup manual → `document is not defined` incluso con config mínima.
+Se revirtió para no romper el build de Netlify. Googlebot renderiza el JS, así que el
+SEO por ruta ya funciona; el SSG queda como follow-up (idealmente vía `ng add @angular/ssr`).
+
+**Verificación.** `npm run build` OK (sitemap + robots en la raíz; GA en el `<head>`);
+backend **101 tests** en verde + ruff limpio; migración encadena en un solo head.
+
+**Acción del usuario (config).** Ver `SEO.md` §checklist: en Coolify
+`DEEPSEEK_API_KEY` + `GROWTH_AGENT_ENABLED=true` + `PUBLIC_SITE_URL` + `INDEXNOW_KEY` +
+`SMTP_*`, y `CORS_ORIGINS`/`SITE_URL` con `mayapredice.site`; **allowlist** de
+`api.deepseek.com` e `api.indexnow.org`; Netlify → dominio `mayapredice.site`; Search
+Console → verificar + enviar sitemap; subir `assets/og-cover.png` (1200×630);
+**rotar** la API key de DeepSeek.

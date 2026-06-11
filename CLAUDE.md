@@ -151,7 +151,18 @@ cd frontend && npm install && npm start  # http://localhost:4200
       línea base. Verificado: el modelo supera a la base (CLI/endpoint `backtest`).
 - [x] **Baja de suscripción (unsubscribe)**: token por suscriptor, envío
       individual con enlace propio + `List-Unsubscribe`. Verificado end-to-end.
-- [ ] Producción real: completar variables/keys en Coolify y Netlify según `DEPLOYMENT.md`.
+- [x] **SEO + Google Analytics 4**: meta/OG/Twitter/canonical/JSON-LD, `SeoService`
+      por ruta, `robots.txt` + `sitemap.xml` (generado en build), GA4 (`G-8KRF0P5NZJ`)
+      con Consent Mode v2. Dominio público **mayapredice.site**. Verificado: build OK. Ver `SEO.md`.
+- [x] **Agente de crecimiento (DeepSeek)**: cron cada 2 h (**OFF por defecto**) que
+      investiga e itera ideas de SEO/promoción/contenido/monetización, las persiste
+      (`growth_runs`/`growth_insights`), hace IndexNow y envía email-digest. La
+      monetización **siempre requiere tu aprobación**. Verificado: 101 tests + ruff. Ver `SEO.md`.
+- [ ] **Prerender/SSG (follow-up)**: el prerender de Angular 18 falló en setup manual
+      (`document is not defined` en el extractor de rutas); retomar vía `ng add @angular/ssr`.
+- [ ] Producción real: completar variables/keys en Coolify y Netlify según `DEPLOYMENT.md`
+      y `SEO.md` (DeepSeek key + `GROWTH_AGENT_ENABLED`, allowlist deepseek/indexnow,
+      dominio `mayapredice.site`, `og-cover.png`, Search Console).
 
 > **Actualiza esta checklist** conforme avances. Es lo primero que mira Claude.
 
