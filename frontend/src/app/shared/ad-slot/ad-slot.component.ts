@@ -55,6 +55,9 @@ export class AdSlotComponent {
   private injectScript(): void {
     if (scriptInjected) return;
     scriptInjected = true;
+    // El loader ya puede venir en el <head> (index.html) para la verificación
+    // del sitio y Auto ads; en ese caso no lo duplicamos.
+    if (document.querySelector('script[src*="adsbygoogle.js"]')) return;
     const s = document.createElement('script');
     s.async = true;
     s.src =

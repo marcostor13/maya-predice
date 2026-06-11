@@ -2,6 +2,6 @@ export const environment = {
   production: true,
   // URL pública del backend (Coolify). Las rutas viven bajo /api/v1.
   apiBaseUrl: 'https://apimayapredice.marcostorresalarcon.com/api/v1',
-  // Publisher ID de AdSense (rellénalo al aprobar la cuenta). Vacío = sin anuncios.
-  adsenseClient: '',
+  // Publisher ID de AdSense (público). Vacío = sin anuncios.
+  adsenseClient: 'ca-pub-6293586665067022',
 };
