@@ -96,7 +96,11 @@ def test_live_update_sets_match_live(monkeypatch):
         try:
             async with session_maker() as db:
                 result = await live_scores.sync_live_scores(db)
-            assert result == {"updated": 1, "live": 1, "finished": 0, "source": "fake"}
+            assert result["updated"] == 1
+            assert result["live"] == 1
+            assert result["finished"] == 0
+            assert result["source"] == "fake"
+            assert result["recompute_triggered"] is False
             async with session_maker() as db:
                 m = await db.get(Match, match_id)
                 assert m.status == MatchStatus.LIVE

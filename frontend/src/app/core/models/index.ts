@@ -68,6 +68,22 @@ export interface LiveMatch {
   away_placeholder?: string | null;
 }
 
+/**
+ * Resultado en vivo/terminado que el navegador "alimenta" al backend
+ * (`POST /matches/live-ingest`). El backend no puede salir a ESPN (allowlist),
+ * así que el cliente le reporta marcadores para reajustar predicciones.
+ */
+export interface LiveIngestFixture {
+  home_code: string;
+  away_code: string;
+  kickoff_date?: string | null;
+  minute?: number | null;
+  status?: string | null;
+  home_goals?: number | null;
+  away_goals?: number | null;
+  finished: boolean;
+}
+
 export interface ScorelineProb {
   home: number;
   away: number;

@@ -3,7 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { LiveMatch, Match, Prediction, Simulation, Squad, Team } from '../models';
+import {
+  LiveIngestFixture,
+  LiveMatch,
+  Match,
+  Prediction,
+  Simulation,
+  Squad,
+  Team,
+} from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -33,6 +41,14 @@ export class ApiService {
 
   getTodayMatches(): Observable<LiveMatch[]> {
     return this.http.get<LiveMatch[]>(`${this.base}/matches/today`);
+  }
+
+  /**
+   * Reporta al backend marcadores en vivo/terminados captados por el navegador
+   * (p. ej. desde ESPN), para que reajuste predicciones tras cada partido.
+   */
+  ingestLive(fixtures: LiveIngestFixture[]): Observable<unknown> {
+    return this.http.post<unknown>(`${this.base}/matches/live-ingest`, { fixtures });
   }
 
   // --- Predictions ---

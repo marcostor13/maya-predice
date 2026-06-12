@@ -41,7 +41,27 @@ TRACKED_FIELDS = (
 )
 
 
-def _provider_match_to_dict(pm: ProviderMatch) -> dict:
+def _provider_match_to_dict(pm: ProviderMatch, old: dict | None = None) -> dict:
+    """Estado que dejaría `pm` aplicado sobre `old`.
+
+    openfootball va con retraso y solo es **autoritativo del resultado final**: si
+    `pm` NO trae resultado (no terminado), NO degradamos un marcador en vivo/final
+    ya existente. En ese caso conservamos los goles/estado actuales en el estado
+    "nuevo" para que la detección de cambios no los marque como modificados.
+    """
+    if pm.is_finished:
+        home_goals = pm.home_goals
+        away_goals = pm.away_goals
+        status = MatchStatus.FINISHED.value
+    elif old is not None:
+        # Sin resultado del proveedor: preservar lo que haya (in-play o ya final).
+        home_goals = old.get("home_goals")
+        away_goals = old.get("away_goals")
+        status = old.get("status", MatchStatus.SCHEDULED.value)
+    else:
+        home_goals = None
+        away_goals = None
+        status = MatchStatus.SCHEDULED.value
     return {
         "kickoff": pm.kickoff.astimezone(UTC).isoformat() if pm.kickoff else None,
         "venue": pm.venue,
@@ -52,9 +72,9 @@ def _provider_match_to_dict(pm: ProviderMatch) -> dict:
         "away_code": pm.away_code,
         "home_placeholder": pm.home_placeholder,
         "away_placeholder": pm.away_placeholder,
-        "home_goals": pm.home_goals,
-        "away_goals": pm.away_goals,
-        "status": MatchStatus.FINISHED.value if pm.is_finished else MatchStatus.SCHEDULED.value,
+        "home_goals": home_goals,
+        "away_goals": away_goals,
+        "status": status,
     }
 
 
@@ -130,9 +150,13 @@ def _apply(m: Match, pm: ProviderMatch, code_to_team: dict[str, Team]) -> None:
     m.away_placeholder = pm.away_placeholder
     m.home_team_id = code_to_team[pm.home_code].id if pm.home_code else None
     m.away_team_id = code_to_team[pm.away_code].id if pm.away_code else None
-    m.home_goals = pm.home_goals
-    m.away_goals = pm.away_goals
-    m.status = MatchStatus.FINISHED if pm.is_finished else MatchStatus.SCHEDULED
+    # openfootball solo AÑADE/CORRIGE resultados finales; nunca los quita. Si el
+    # proveedor no trae resultado, conservamos los goles/estado actuales (un
+    # marcador en vivo enviado por el navegador, o uno ya finalizado, no se degrada).
+    if pm.is_finished:
+        m.home_goals = pm.home_goals
+        m.away_goals = pm.away_goals
+        m.status = MatchStatus.FINISHED
 
 
 async def sync_official_data(
@@ -159,7 +183,6 @@ async def sync_official_data(
         created = updated = changes_count = 0
 
         for pm in provider_matches:
-            new_state = _provider_match_to_dict(pm)
             match = existing.get(pm.external_ref)
 
             if match is None:
@@ -183,6 +206,9 @@ async def sync_official_data(
                 changes_count += 1
             else:
                 old_state = _existing_match_to_dict(match, id_to_code)
+                # El estado "nuevo" preserva goles/estado si el proveedor no trae
+                # resultado (blindaje: openfootball no degrada un marcador en vivo).
+                new_state = _provider_match_to_dict(pm, old_state)
                 diffs = compute_changes(old_state, new_state)
                 if diffs:
                     _apply(match, pm, code_to_team)

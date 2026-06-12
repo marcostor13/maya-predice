@@ -2,7 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 
-import { LiveMatch } from '../models';
+import { LiveIngestFixture, LiveMatch } from '../models';
+import { ApiService } from './api.service';
 
 /**
  * Un partido normalizado del scoreboard de ESPN (códigos FIFA de 3 letras).
@@ -48,6 +49,7 @@ interface EspnStatus {
 @Injectable({ providedIn: 'root' })
 export class LiveEspnService {
   private http = inject(HttpClient);
+  private api = inject(ApiService);
 
   /** Ruta relativa: la sirve Netlify, NO el backend de Coolify. */
   private readonly espnUrl =
@@ -58,6 +60,33 @@ export class LiveEspnService {
       map((data) => this.parse(data)),
       catchError(() => of<EspnFixture[]>([])),
     );
+  }
+
+  /**
+   * "Alimenta" al backend con los marcadores en vivo/terminados captados desde
+   * ESPN (el backend no puede salir a ESPN por la allowlist). Fire-and-forget:
+   * cualquier error de red/proxy se ignora para no romper el polling de la UI.
+   * Solo se reportan partidos en vivo o finalizados (los "pre" se descartan).
+   */
+  reportToBackend(fixtures: EspnFixture[]): void {
+    if (!fixtures.length) return;
+
+    const payload: LiveIngestFixture[] = fixtures
+      .filter((f) => f.live || f.finished)
+      .map((f) => ({
+        home_code: (f.homeCode ?? '').toUpperCase(),
+        away_code: (f.awayCode ?? '').toUpperCase(),
+        kickoff_date: null,
+        minute: f.minute,
+        status: f.live ? 'in' : f.finished ? 'post' : null,
+        home_goals: f.homeGoals,
+        away_goals: f.awayGoals,
+        finished: f.finished,
+      }));
+
+    if (!payload.length) return;
+
+    this.api.ingestLive(payload).subscribe({ error: () => {} });
   }
 
   private parse(data: EspnRaw): EspnFixture[] {

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -59,3 +59,22 @@ class LiveMatchRead(BaseModel):
     venue: str | None = None
     home_placeholder: str | None = None
     away_placeholder: str | None = None
+
+
+class LiveIngestFixture(BaseModel):
+    """Un partido en vivo enviado por el navegador (ESPN vía proxy de Netlify)."""
+
+    home_code: str
+    away_code: str
+    kickoff_date: date | None = None
+    minute: int | None = None
+    status: str | None = None
+    home_goals: int | None = None
+    away_goals: int | None = None
+    finished: bool = False
+
+
+class LiveIngestBody(BaseModel):
+    """Cuerpo de `POST /matches/live-ingest`."""
+
+    fixtures: list[LiveIngestFixture]

@@ -1,11 +1,15 @@
-"""Ingesta ligera de marcadores en vivo (in-play).
+"""Ingesta de marcadores en vivo (in-play).
 
-Cada ~2 min consulta al proveedor live (API-Football) los partidos en juego y
-actualiza el marcador de los `Match` que casan por (códigos de equipo + fecha de
-kickoff). Es **ligero a propósito**: no reentrena ni recalcula predicciones — de
-eso siguen encargándose los jobs existentes cuando un partido termina.
+Dos modos:
+- **Job periódico** (cada ~2 min): consulta la cadena de proveedores live los
+  partidos en juego y actualiza el marcador de los `Match` que casan por (códigos
+  de equipo + fecha de kickoff). No-op si está desactivado o sin providers.
+- **Ingesta desde el navegador** (`fixtures=...`): el cliente trae el marcador de
+  ESPN vía el proxy de Netlify (el backend no alcanza la fuente por la allowlist de
+  Coolify) y lo envía. No toca la red ni exige `enable_live_scores`.
 
-No-op si la función está desactivada o sin key (no toca la red).
+En ambos modos, cuando un partido **transiciona a FINISHED**, dispara un recálculo
+serializado (`recompute_pipeline`, force) para reajustar predicciones/simulación.
 """
 
 from __future__ import annotations
@@ -72,16 +76,34 @@ def _dates_match(a: date | None, b: date | None) -> bool:
     return abs((a - b).days) <= _DATE_TOLERANCE_DAYS
 
 
-async def sync_live_scores(db: AsyncSession) -> dict:
-    """Ingiere los marcadores en vivo y actualiza los partidos. Devuelve un resumen."""
+async def sync_live_scores(
+    db: AsyncSession, *, fixtures: list[LiveFixture] | None = None
+) -> dict:
+    """Ingiere los marcadores en vivo y actualiza los partidos. Devuelve un resumen.
+
+    Dos modos:
+    - `fixtures is None` (job periódico): respeta `enable_live_scores`, construye la
+      cadena de proveedores y consulta la red.
+    - `fixtures` dado (ingesta desde el navegador, vía proxy de Netlify a ESPN): usa
+      esos fixtures directamente — NO construye providers, NO toca la red y NO exige
+      `enable_live_scores`.
+
+    Cuando un partido transiciona a FINISHED (antes no lo estaba), dispara un
+    recálculo serializado (`recompute_pipeline`, force) para reajustar predicciones.
+    """
     await apply_overrides(db)
 
-    if not settings.enable_live_scores:
-        return {"updated": 0, "live": 0, "skipped": True}
+    ingested = fixtures is not None
+    source: str | None = "ingest" if ingested else None
 
-    providers = _build_providers()
-    if not providers:
-        return {"updated": 0, "live": 0, "skipped": True}
+    if not ingested:
+        if not settings.enable_live_scores:
+            return {"updated": 0, "live": 0, "skipped": True}
+        providers = _build_providers()
+        if not providers:
+            return {"updated": 0, "live": 0, "skipped": True}
+    else:
+        providers = []
 
     now = datetime.now(UTC)
     today = now.date()
@@ -132,27 +154,31 @@ async def sync_live_scores(db: AsyncSession) -> dict:
             )
         )
 
-    # Cadena de fallback: usa el primer proveedor que devuelva algo.
-    fixtures: list[LiveFixture] = []
-    source: str | None = None
-    for provider in providers:
-        try:
-            result = await provider.fetch_live(candidates)
-        except Exception as exc:  # noqa: BLE001 — una fuente caída no tumba el ciclo
-            logger.warning("Fuente live '%s' falló: %s", provider.name, exc)
-            continue
-        if result:
-            fixtures = result
-            source = provider.name
-            logger.info("Marcador en vivo servido por '%s' (%s fixtures).", source, len(result))
-            break
+    # Cadena de fallback: usa el primer proveedor que devuelva algo (modo job). En
+    # modo ingesta, `fixtures` ya viene dado por el llamador (el navegador).
+    feed: list[LiveFixture] = fixtures if ingested else []
+    if not ingested:
+        for provider in providers:
+            try:
+                result = await provider.fetch_live(candidates)
+            except Exception as exc:  # noqa: BLE001 — una fuente caída no tumba el ciclo
+                logger.warning("Fuente live '%s' falló: %s", provider.name, exc)
+                continue
+            if result:
+                feed = result
+                source = provider.name
+                logger.info(
+                    "Marcador en vivo servido por '%s' (%s fixtures).", source, len(result)
+                )
+                break
 
     updated = 0
     live = 0
     finished = 0
     matched_ids: set[int] = set()
+    finished_ids: list[int] = []
 
-    for fx in fixtures:
+    for fx in feed:
         if not fx.home_code or not fx.away_code:
             continue
         target: Match | None = None
@@ -168,6 +194,8 @@ async def sync_live_scores(db: AsyncSession) -> dict:
 
         matched_ids.add(target.id)
         if fx.finished:
+            if target.status != MatchStatus.FINISHED:
+                finished_ids.append(target.id)
             target.status = MatchStatus.FINISHED
             target.minute = None
             finished += 1
@@ -193,6 +221,7 @@ async def sync_live_scores(db: AsyncSession) -> dict:
             match.status = MatchStatus.FINISHED
             match.minute = None
             match.live_updated_at = now
+            finished_ids.append(match.id)
             finished += 1
             updated += 1
 
@@ -204,4 +233,47 @@ async def sync_live_scores(db: AsyncSession) -> dict:
         live,
         finished,
     )
-    return {"updated": updated, "live": live, "finished": finished, "source": source}
+
+    # Algún partido transicionó a FINISHED → reajustar predicciones. Dispara un
+    # recálculo serializado (un job a la vez) con su propia sesión. Imports LAZY
+    # para evitar ciclos (recompute → sync → ... → este módulo).
+    recompute_triggered = False
+    if finished_ids:
+        recompute_triggered = await _trigger_recompute_after_finish(finished_ids)
+
+    return {
+        "updated": updated,
+        "live": live,
+        "finished": finished,
+        "finished_ids": finished_ids,
+        "recompute_triggered": recompute_triggered,
+        "source": source,
+    }
+
+
+async def _trigger_recompute_after_finish(finished_ids: list[int]) -> bool:
+    """Lanza el recálculo serializado tras detectar partidos finalizados.
+
+    Devuelve True si lo lanzó; False si ya había uno en curso o falló (no rompe la
+    ingesta). Imports diferidos para evitar imports circulares.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.jobs import JobInProgress, start_job
+    from app.services.recompute import recompute_pipeline
+
+    async with AsyncSessionLocal() as job_db:
+        try:
+            await start_job(
+                job_db,
+                "recompute",
+                lambda s: recompute_pipeline(s, trigger="live-finish", force=True),
+            )
+            logger.info("Recálculo (live-finish) lanzado por %s partidos.", len(finished_ids))
+            return True
+        except JobInProgress:
+            logger.info("Recálculo (live-finish) omitido: ya hay uno en curso.")
+            return False
+        except Exception:  # noqa: BLE001 — un fallo al lanzar no rompe la ingesta
+            await job_db.rollback()
+            logger.exception("No se pudo lanzar el recálculo (live-finish).")
+            return False

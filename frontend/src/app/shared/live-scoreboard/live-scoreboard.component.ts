@@ -174,6 +174,9 @@ export class LiveScoreboardComponent {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ backendLive, today, preds, espn }) => {
+        // Alimenta al backend con lo captado desde ESPN (incluye terminados →
+        // dispara el reentreno). Único punto de envío (fire-and-forget).
+        this.liveEspn.reportToBackend(espn);
         this.matches.set(LiveEspnService.mergeLive(backendLive, espn, today));
         this.predsById.set(new Map(preds.map((p) => [p.match_id, p])));
       });
