@@ -155,6 +155,7 @@ export class LiveComponent {
         this.live.set(LiveEspnService.mergeLive(backendLive, espn, today));
         this.today.set(today);
         this.loadingToday.set(false);
+        this.setTodayJsonLd(today);
       });
 
     // Título dinámico reactivo: cuando hay un partido en vivo, refleja el marcador.
@@ -171,6 +172,35 @@ export class LiveComponent {
       } else {
         this.seo.update(DEFAULT_SEO);
       }
+    });
+  }
+
+  /** Datos estructurados ItemList de los partidos de hoy (defensivo si no hay). */
+  private setTodayJsonLd(matches: LiveMatch[]): void {
+    if (!matches.length) {
+      this.seo.setJsonLd('live-jsonld', {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: 'Partidos del Mundial 2026 hoy',
+        numberOfItems: 0,
+        itemListElement: [],
+      });
+      return;
+    }
+    this.seo.setJsonLd('live-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Partidos del Mundial 2026 hoy',
+      numberOfItems: matches.length,
+      itemListElement: matches.map((m, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: `${this.teamLabel(m.home_name, m.home_code, m.home_placeholder)} vs ${this.teamLabel(
+          m.away_name,
+          m.away_code,
+          m.away_placeholder,
+        )}`,
+      })),
     });
   }
 

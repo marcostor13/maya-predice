@@ -158,8 +158,11 @@ cd frontend && npm install && npm start  # http://localhost:4200
       investiga e itera ideas de SEO/promoción/contenido/monetización, las persiste
       (`growth_runs`/`growth_insights`), hace IndexNow y envía email-digest. La
       monetización **siempre requiere tu aprobación**. Verificado: 101 tests + ruff. Ver `SEO.md`.
-- [ ] **Prerender/SSG (follow-up)**: el prerender de Angular 18 falló en setup manual
-      (`document is not defined` en el extractor de rutas); retomar vía `ng add @angular/ssr`.
+- [x] **Prerender por ruta (HTML estático indexable)**: `scripts/prerender.mjs` (Playwright
+      headless) tras `ng build` renderiza cada ruta (estáticas + 48 equipos) a HTML con su
+      title/meta/JSON-LD ya aplicados. **No-fatal**: si no hay Chromium, build sigue en CSR.
+      + `index.html` con contenido crawleable y `<noscript>`, SEO dinámico por equipo, y
+      JSON-LD (Organization/BreadcrumbList/SportsTeam/ItemList). Verificado: build OK.
 - [ ] Producción real: completar variables/keys en Coolify y Netlify según `DEPLOYMENT.md`
       y `SEO.md` (DeepSeek key + `GROWTH_AGENT_ENABLED`, allowlist deepseek/indexnow,
       dominio `mayapredice.site`, `og-cover.png`, Search Console).

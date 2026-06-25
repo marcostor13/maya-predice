@@ -87,10 +87,22 @@ externo `python -m app.data.grow`. Panel: endpoints `/admin/growth*`.
    meta `google-site-verification` que ya tiene hueco en `index.html`).
 2. **Enviar el sitemap**: `https://mayapredice.site/sitemap.xml`.
 
-## 5. Follow-up: Prerender/SSG
+## 5. Prerender por ruta (HTML estático indexable)
 
-El prerender estático de Angular 18 (HTML por ruta para todos los crawlers y
-previews sociales) se intentó pero el extractor de rutas del builder usaba la
-plataforma de navegador en el setup manual (`document is not defined`). Pendiente
-de retomarlo, idealmente con `ng add @angular/ssr` para que cablee server.ts /
-main.server.ts / app.config.server.ts de forma soportada.
+`scripts/prerender.mjs` corre tras `ng build` (y `gen-sitemap`): levanta un servidor
+estático del `dist`, lanza **Chromium headless (Playwright)** y renderiza cada ruta
+(las estáticas + las 48 selecciones `/equipos/:code`), guardando el HTML resultante
+—con `title`/meta/canonical/JSON-LD ya aplicados por `SeoService` y el contenido
+visible— como `…/<ruta>/index.html`. Así **todos** los crawlers y los unfurlers
+sociales (que no ejecutan JS) ven HTML real por página; el SPA hidrata encima para el
+usuario. Netlify sirve el estático prerenderizado y cae al `index.html` (CSR) para las
+rutas sin prerender.
+
+**Es no-fatal:** si no hay Chromium disponible, el script se omite y el sitio queda en
+CSR (sin regresión). En Netlify, `netlify.toml` baja chromium con
+`npx playwright install chromium || true` y `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` evita
+descargar los 3 navegadores en `npm install`. Las páginas prerenderizan con los datos
+de la API **al momento del build**; el cliente los refresca en vivo.
+
+Además: `index.html` lleva contenido crawleable dentro de `<app-root>` + `<noscript>`,
+y hay JSON-LD por página (Organization, BreadcrumbList, SportsTeam, ItemList).

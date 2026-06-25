@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
+import { SeoService } from '../../core/services/seo.service';
 import { WikiSquadService } from '../../core/services/wiki-squad.service';
 import { Player, Position, Squad } from '../../core/models';
 import { FlagComponent } from '../../shared/flag/flag.component';
@@ -133,6 +134,7 @@ export class TeamDetailComponent {
   private api = inject(ApiService);
   private wiki = inject(WikiSquadService);
   private route = inject(ActivatedRoute);
+  private seo = inject(SeoService);
 
   squad = signal<Squad | null>(null);
   loading = signal(true);
@@ -153,8 +155,37 @@ export class TeamDetailComponent {
       .filter((g) => g.players.length > 0);
   });
 
+  private code = this.route.snapshot.paramMap.get('code') ?? '';
+
   constructor() {
-    const code = this.route.snapshot.paramMap.get('code') ?? '';
+    // SEO dinámico reactivo: en cuanto se conoce la selección, fija
+    // title/description/canonical, migas de pan y JSON-LD del equipo.
+    effect(() => {
+      const s = this.squad();
+      if (!s?.team_name) return;
+      const name = s.team_name;
+      const teamCode = s.team_code || this.code;
+      const path = `/equipos/${teamCode}`;
+      this.seo.update({
+        title: `${name} en el Mundial 2026 · Plantilla y predicción`,
+        description: `Plantilla, entrenador y predicciones de ${name} en el Mundial 2026: probabilidad de avanzar y de ser campeón según el modelo.`,
+        path,
+      });
+      this.seo.breadcrumb([
+        { name: 'Inicio', path: '/' },
+        { name: 'Equipos', path: '/equipos' },
+        { name, path },
+      ]);
+      this.seo.setJsonLd('team-jsonld', {
+        '@context': 'https://schema.org',
+        '@type': 'SportsTeam',
+        name,
+        sport: 'Soccer',
+        url: `https://mayapredice.site${path}`,
+      });
+    });
+
+    const code = this.code;
     this.api.getSquad(code).subscribe({
       next: (s) => {
         this.squad.set(s);

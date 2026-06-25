@@ -5,7 +5,10 @@
   # npm install (no npm ci): el arbol de Angular 18 mezcla chokidar 3 y 4, y npm
   # genera un lock que el `npm ci` estricto rechaza (bug conocido de npm). npm
   # install resuelve el arbol correctamente y construye sin problema.
-  command = "npm install --no-audit --no-fund && npm run build"
+  # `playwright install chromium` (no-fatal) baja el navegador para el prerender
+  # de rutas (scripts/prerender.mjs). Si fallara, `|| true` deja seguir y el sitio
+  # queda en CSR (sin regresión). `npm install` NO baja navegadores (ver env).
+  command = "npm install --no-audit --no-fund && (npx playwright install chromium || true) && npm run build"
   publish = "dist/maya-predice/browser"
   # Solo construye/despliega si hubo cambios en frontend/ (base dir).
   # El comando corre desde el base dir; `git diff --quiet` devuelve 0 (sin
@@ -14,6 +17,9 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Evita que `npm install` descargue los 3 navegadores de Playwright (lento y
+  # frágil); el build baja solo chromium explícitamente y de forma no-fatal.
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"
 
 # Proxy a la API pública de ESPN. Netlify (no el backend de Coolify) hace de
 # proxy del lado servidor, así que el navegador lo consume mismo-origen (sin
